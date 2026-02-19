@@ -57,7 +57,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isProcessing }) =
         ref={inputRef}
         type="file"
         className="hidden"
-        accept="image/*"
+        accept="image/*,application/pdf"
         onChange={handleChange}
         disabled={isProcessing}
       />
@@ -66,7 +66,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isProcessing }) =
         <div className="flex flex-col items-center animate-pulse">
           <Loader2 size={48} className="text-indigo-600 animate-spin mb-4" />
           <p className="text-lg font-semibold text-slate-700">Analyzing Invoice...</p>
-          <p className="text-sm text-slate-500 mt-2">Identifying items and assigning GL codes</p>
+          <p className="text-sm text-slate-500 mt-2">Identifying items, verifying address, and assigning GL codes</p>
         </div>
       ) : (
         <>
@@ -77,12 +77,11 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isProcessing }) =
             Upload Invoice
           </h3>
           <p className="text-sm text-slate-500 max-w-sm mb-4">
-            Drag and drop your invoice image here, or click to browse. 
-            Supported formats: PNG, JPG.
+            Drag and drop your invoice here (PDF or Image), or click to browse.
           </p>
           <div className="flex gap-3 text-xs text-slate-400">
-            <span className="flex items-center"><FileType size={12} className="mr-1" /> Auto-categorization</span>
-            <span className="flex items-center"><FileType size={12} className="mr-1" /> Line item extraction</span>
+            <span className="flex items-center"><FileType size={12} className="mr-1" /> PDF & Images</span>
+            <span className="flex items-center"><FileType size={12} className="mr-1" /> Address Verification</span>
           </div>
         </>
       )}

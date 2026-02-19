@@ -7,7 +7,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const MODEL_NAME = "gemini-3-flash-preview";
 
-export const analyzeInvoiceImage = async (base64Image: string, mimeType: string = "image/png"): Promise<AnalysisResult> => {
+export const analyzeInvoiceImage = async (base64Data: string, mimeType: string = "image/png"): Promise<AnalysisResult> => {
   try {
     // Convert DB to a compact CSV-like string for the prompt
     const dbContext = MASTER_PRODUCT_DB.map(p => 
@@ -17,7 +17,9 @@ export const analyzeInvoiceImage = async (base64Image: string, mimeType: string 
     const glCodeContext = GL_CODES.map(g => `${g.code}: ${g.category} (${g.description || ''})`).join('\n');
 
     const prompt = `
-      You are an expert culinary accountant. Analyze this invoice image.
+      You are an expert culinary accountant. Analyze this invoice (Image or PDF).
+      
+      CRITICAL INSTRUCTION: Check the "Ship To" or "Delivery Address".
       
       We have a MASTER PRODUCT DATABASE. You MUST check this database first for every line item.
       
@@ -28,16 +30,18 @@ export const analyzeInvoiceImage = async (base64Image: string, mimeType: string 
       ${glCodeContext}
       
       INSTRUCTIONS:
-      1. Extract vendor, invoice info, and all line items (description, product number if visible, qty, price).
-      2. For each item:
+      1. Extract vendor, invoice number, invoice date, total amount.
+      2. Extract the **Delivery Address** (Ship To) exactly as it appears.
+      3. Extract all line items (description, product number if visible, qty, price).
+      4. For each item:
          - **STEP 1 (EXACT MATCH)**: Does the Product Number or Description match an entry in the Master Product Database? 
            - IF YES: You MUST use the exact 'Code' and 'Cat' (Category) from the database. Set 'isDatabaseMatch' to true.
            - IF NO: Proceed to Step 2.
          - **STEP 2 (INFER)**: Use the General GL Code Rules to assign the code. Set 'isDatabaseMatch' to false.
-      3. For inferred items:
+      5. For inferred items:
          - If 'Ice Cream', 'Frozen', or 'Coffee', use 6318.
          - If ambiguous, use best culinary judgment.
-      4. Return pure JSON.
+      6. Return pure JSON.
     `;
 
     const response = await ai.models.generateContent({
@@ -47,7 +51,7 @@ export const analyzeInvoiceImage = async (base64Image: string, mimeType: string 
           {
             inlineData: {
               mimeType: mimeType, 
-              data: base64Image
+              data: base64Data
             }
           },
           { text: prompt }
@@ -61,6 +65,7 @@ export const analyzeInvoiceImage = async (base64Image: string, mimeType: string 
             vendorName: { type: Type.STRING },
             invoiceNumber: { type: Type.STRING },
             invoiceDate: { type: Type.STRING },
+            deliveryAddress: { type: Type.STRING, description: "The Ship To or Delivery Address found on the invoice" },
             totalAmount: { type: Type.NUMBER },
             items: {
               type: Type.ARRAY,

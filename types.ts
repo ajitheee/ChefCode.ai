@@ -21,6 +21,7 @@ export interface AnalysisResult {
   vendorName: string;
   invoiceDate: string;
   invoiceNumber: string;
+  deliveryAddress?: string; // New field for address verification
   items: InvoiceItem[];
   totalAmount: number;
 }
