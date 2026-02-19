@@ -1,0 +1,5 @@
+{
+  "name": "Culinary Invoice Coder",
+  "description": "Automated invoice processing and GL coding for culinary operations using Gemini Vision AI.",
+  "requestFramePermissions": []
+}

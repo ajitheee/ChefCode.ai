@@ -1,0 +1,28 @@
+export interface GLCode {
+  code: string;
+  category: string;
+  description?: string;
+}
+
+export interface InvoiceItem {
+  id: string;
+  productNumber?: string; // Added to track product #
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  glCode: string;
+  categoryName: string;
+  confidence: number; // 0-1 score from AI
+  isDatabaseMatch?: boolean; // New flag for UI
+}
+
+export interface AnalysisResult {
+  vendorName: string;
+  invoiceDate: string;
+  invoiceNumber: string;
+  items: InvoiceItem[];
+  totalAmount: number;
+}
+
+export type ProcessingStatus = 'idle' | 'uploading' | 'analyzing' | 'complete' | 'error';
