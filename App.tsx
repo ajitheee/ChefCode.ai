@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import FileUpload from './components/FileUpload';
 import Dashboard from './components/Dashboard';
 import InvoiceTable from './components/InvoiceTable';
-import { AnalysisResult, InvoiceItem, ProcessingStatus } from './types';
+import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice } from './types';
 import { analyzeInvoiceImage } from './services/geminiService';
-import { ChefHat, Download, RotateCcw, Save } from 'lucide-react';
+import { saveInvoiceToHistory, checkForDuplicate } from './services/storageService';
+import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<ProcessingStatus>('idle');
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<SavedInvoice | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
 
   // Helper to convert file to base64 and extract mimeType
   const processFile = (file: File): Promise<{ base64: string, mimeType: string }> => {
@@ -34,11 +37,20 @@ const App: React.FC = () => {
   const handleFileSelect = async (file: File) => {
     setStatus('uploading');
     setErrorMsg(null);
+    setDuplicateWarning(null);
+    setIsSaved(false);
+
     try {
       const { base64, mimeType } = await processFile(file);
       setStatus('analyzing');
-      // Pass both base64 data and the detected mimeType
       const data = await analyzeInvoiceImage(base64, mimeType);
+      
+      // Check for duplicates
+      const duplicate = checkForDuplicate(data);
+      if (duplicate) {
+        setDuplicateWarning(duplicate);
+      }
+
       setResult(data);
       setStatus('complete');
     } catch (err: any) {
@@ -66,6 +78,19 @@ const App: React.FC = () => {
     setStatus('idle');
     setResult(null);
     setErrorMsg(null);
+    setDuplicateWarning(null);
+    setIsSaved(false);
+  };
+
+  const handleSaveAndFinish = () => {
+    if (result) {
+      saveInvoiceToHistory(result);
+      setIsSaved(true);
+      // Optional: Delay reset or show success message
+      setTimeout(() => {
+        handleReset();
+      }, 2000);
+    }
   };
 
   const handleExport = () => {
@@ -135,7 +160,15 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {status === 'idle' || status === 'uploading' || status === 'analyzing' ? (
+        {isSaved ? (
+           <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+              <div className="bg-green-100 p-4 rounded-full text-green-600 mb-4">
+                <CheckCircle2 size={48} />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">Invoice Saved!</h2>
+              <p className="text-slate-500 mt-2">Redirecting to upload screen...</p>
+           </div>
+        ) : status === 'idle' || status === 'uploading' || status === 'analyzing' ? (
           <div className="max-w-3xl mx-auto mt-12">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
@@ -189,7 +222,26 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-8 pb-20">
+            {/* Duplicate Warning */}
+            {duplicateWarning && (
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-4 animate-fade-in">
+                 <AlertTriangle className="text-amber-600 flex-shrink-0 mt-1" size={24} />
+                 <div className="flex-1">
+                    <h4 className="font-bold text-amber-900">Possible Duplicate Invoice Detected</h4>
+                    <p className="text-amber-800 text-sm mt-1">
+                       An invoice with number <strong>{duplicateWarning.invoiceNumber}</strong> from <strong>{duplicateWarning.vendorName}</strong> was already processed on {new Date(duplicateWarning.processedAt).toLocaleDateString()}.
+                    </p>
+                 </div>
+                 <button 
+                   onClick={() => setDuplicateWarning(null)}
+                   className="text-amber-900 underline text-sm font-medium"
+                 >
+                   Dismiss
+                 </button>
+              </div>
+            )}
+
             {result && (
               <>
                 <Dashboard data={result} />
@@ -211,14 +263,31 @@ const App: React.FC = () => {
         )}
       </main>
       
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-auto">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-slate-400">
-            &copy; {new Date().getFullYear()} ChefCode.ai. Culinary Intelligence.
-          </p>
+      {/* Floating Action Bar for Completion */}
+      {status === 'complete' && !isSaved && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg z-40">
+           <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
+              <p className="text-sm text-slate-500 hidden sm:block">
+                 Found {result?.items.length} items totaling ${result?.totalAmount.toFixed(2)}
+              </p>
+              <div className="flex gap-4 ml-auto">
+                 <button 
+                  onClick={handleReset}
+                  className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50"
+                 >
+                   Cancel
+                 </button>
+                 <button 
+                  onClick={handleSaveAndFinish}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 flex items-center shadow-md transform hover:-translate-y-0.5 transition-all"
+                 >
+                   <CheckCircle2 size={20} className="mr-2" />
+                   Mark as Done
+                 </button>
+              </div>
+           </div>
         </div>
-      </footer>
+      )}
     </div>
   );
 };

@@ -26,4 +26,13 @@ export interface AnalysisResult {
   totalAmount: number;
 }
 
+export interface SavedInvoice {
+  id: string;
+  vendorName: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  totalAmount: number;
+  processedAt: string;
+}
+
 export type ProcessingStatus = 'idle' | 'uploading' | 'analyzing' | 'complete' | 'error';

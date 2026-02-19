@@ -135,41 +135,50 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         </div>
 
         {/* Charts */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Cost Distribution</h3>
-          <div className="h-64 flex">
-             <div className="flex-1">
+          
+          <div className="flex-1 min-h-[300px] flex flex-col md:flex-row gap-8">
+             {/* Pie Chart - Fixed overlapping by moving legend to bottom */}
+             <div className="flex-1 h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                    data={categoryTotals}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    paddingAngle={5}
-                    dataKey="value"
-                    >
-                    {categoryTotals.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
-                    <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '10px' }} />
-                </PieChart>
+                  <PieChart>
+                      <Pie
+                        data={categoryTotals}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                      {categoryTotals.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                      <Legend 
+                        layout="horizontal" 
+                        verticalAlign="bottom" 
+                        align="center" 
+                        wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} 
+                      />
+                  </PieChart>
                 </ResponsiveContainer>
              </div>
-             <div className="flex-1 hidden md:block">
+             
+             {/* Bar Chart - Good for side-by-side comparison */}
+             <div className="flex-1 h-[300px] hidden md:block">
                  <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                         data={categoryTotals}
                         layout="vertical"
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
                     >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                         <XAxis type="number" hide />
-                        <YAxis type="category" dataKey="name" width={1} tick={false} />
+                        <YAxis type="category" dataKey="name" width={120} tick={{fontSize: 10}} />
                         <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} cursor={{fill: 'transparent'}} />
                         <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]}>
                         {categoryTotals.map((entry, index) => (
