@@ -3,13 +3,26 @@ import { GL_CODES } from "../constants";
 import { getAllProducts } from "./productService";
 import { AnalysisResult } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize Gemini Client lazily
+let ai: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  if (!ai) {
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("API Key is missing. Please add it to your environment variables.");
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+};
 
 const MODEL_NAME = "gemini-3-flash-preview";
 
 export const analyzeInvoiceImage = async (base64Data: string, mimeType: string = "image/png"): Promise<AnalysisResult> => {
   try {
+    const aiClient = getAiClient();
+    
     // Fetch the latest product list (including user-saved ones)
     const currentProductDB = getAllProducts();
 
@@ -48,7 +61,7 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string =
       6. Return pure JSON.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await aiClient.models.generateContent({
       model: MODEL_NAME,
       contents: {
         parts: [
