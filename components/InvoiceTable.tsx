@@ -1,15 +1,16 @@
 import React from 'react';
 import { InvoiceItem, GLCode } from '../types';
 import { GL_CODES } from '../constants';
-import { Trash2, AlertCircle, CheckCircle, Database } from 'lucide-react';
+import { Trash2, AlertCircle, CheckCircle, Database, Plus } from 'lucide-react';
 
 interface InvoiceTableProps {
   items: InvoiceItem[];
   onUpdateItem: (id: string, field: keyof InvoiceItem, value: any) => void;
   onDeleteItem: (id: string) => void;
+  onAddToDb: (item: InvoiceItem) => void;
 }
 
-const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDeleteItem }) => {
+const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDeleteItem, onAddToDb }) => {
 
   const handleGlChange = (id: string, codeValue: string) => {
     // Value of option is index in GL_CODES
@@ -33,7 +34,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
               <th scope="col" className="px-6 py-3 w-32 text-right">Price</th>
               <th scope="col" className="px-6 py-3 w-32 text-right">Total</th>
               <th scope="col" className="px-6 py-3 w-64">GL Code & Category</th>
-              <th scope="col" className="px-6 py-3 w-16 text-center">Action</th>
+              <th scope="col" className="px-6 py-3 w-24 text-center">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -56,14 +57,23 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                              )}
                         </div>
                       
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
                          {item.isDatabaseMatch ? (
                             <span className="flex items-center text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100" title="Matched from Master Product List">
-                              <Database size={10} className="mr-1" /> Auto-Matched
+                              <Database size={10} className="mr-1" /> Matched
                             </span>
-                          ) : item.confidence < 0.7 && (
+                          ) : (
+                            <button 
+                                onClick={() => onAddToDb(item)}
+                                className="flex items-center text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                            >
+                                <Plus size={10} className="mr-1" /> Add to DB
+                            </button>
+                          )}
+                          
+                          {!item.isDatabaseMatch && item.confidence < 0.7 && (
                             <span className="flex items-center text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                              <AlertCircle size={10} className="mr-1" /> Check this
+                              <AlertCircle size={10} className="mr-1" /> Low Confidence
                             </span>
                           )}
                       </div>
@@ -99,8 +109,8 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                     onChange={(e) => handleGlChange(item.id, e.target.value)}
                     className={`
                       w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-slate-900 ring-1 ring-inset ring-slate-300 
-                      focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6
-                      ${item.isDatabaseMatch ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : ''}
+                      focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6 cursor-pointer
+                      ${item.isDatabaseMatch ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-white'}
                       ${!item.glCode ? 'bg-red-50 text-red-900 ring-red-300' : ''}
                     `}
                   >
@@ -115,9 +125,10 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                 <td className="px-6 py-4 text-center">
                   <button 
                     onClick={() => onDeleteItem(item.id)}
-                    className="text-slate-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50"
+                    className="text-slate-400 hover:text-red-600 transition-colors p-1.5 rounded hover:bg-red-50"
+                    title="Remove Item"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 </td>
               </tr>

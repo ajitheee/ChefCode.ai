@@ -18,6 +18,43 @@ export const GL_CODES: GLCode[] = [
   { code: '7155', category: 'Laundry', description: 'Linens, Uniform cleaning' },
 ];
 
+export const FOOD_VENDORS = [
+  "SYSCO",
+  "SunRise Produce",
+  "Giulianos Bakery",
+  "Performance",
+  "Spadra",
+  "Pepsi",
+  "Misc.",
+  "US FOOD",
+  "Bon Suisse",
+  "Wismettac",
+  "M cafe",
+  "Freshpoint",
+  "Unistar Foods",
+  "Southern Glazer's / Reliant Coffee",
+  "Karat By Lollicup",
+  "Cali Dumpling / Raindrop Investments 2 Inc",
+  "Coney Island / New carbo company or Golden Waffles",
+  "IFS FOOD Services",
+  "SOUTH SHORE / CORE MARK"
+];
+
+export const NON_FOOD_VENDORS = [
+  "Calico",
+  "Prudential",
+  "All Sharpened Knives",
+  "GNA Brook Fire",
+  "IFS",
+  "Dallas Bros",
+  "SYSCO",
+  "Mis. CINTAS",
+  "Airgas",
+  "ECO LAB",
+  "DON",
+  "Whirley Drink Works"
+];
+
 // Based on the user's provided Excel data
 export const MASTER_PRODUCT_DB = [
   { productNo: "483920", category: "Produce", description: "Roma Tomatoes, fresh", code: "6323" },

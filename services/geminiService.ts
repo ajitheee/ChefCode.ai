@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { GL_CODES, MASTER_PRODUCT_DB } from "../constants";
+import { GL_CODES } from "../constants";
+import { getAllProducts } from "./productService";
 import { AnalysisResult } from "../types";
 
 // Initialize Gemini Client
@@ -9,8 +10,11 @@ const MODEL_NAME = "gemini-3-flash-preview";
 
 export const analyzeInvoiceImage = async (base64Data: string, mimeType: string = "image/png"): Promise<AnalysisResult> => {
   try {
+    // Fetch the latest product list (including user-saved ones)
+    const currentProductDB = getAllProducts();
+
     // Convert DB to a compact CSV-like string for the prompt
-    const dbContext = MASTER_PRODUCT_DB.map(p => 
+    const dbContext = currentProductDB.map(p => 
       `Prod#:${p.productNo}|Desc:${p.description}|Cat:${p.category}|Code:${p.code}`
     ).join('\n');
 

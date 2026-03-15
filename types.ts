@@ -4,6 +4,20 @@ export interface GLCode {
   description?: string;
 }
 
+export interface Product {
+  productNo: string;
+  description: string;
+  category: string;
+  code: string;
+}
+
+export interface TrackerSplits {
+  food: number;
+  nonFoodExpendable: number;
+  nonFoodNonExpendable: number;
+  nonFoodOther: number;
+}
+
 export interface InvoiceItem {
   id: string;
   productNumber?: string; // Added to track product #
@@ -33,6 +47,7 @@ export interface SavedInvoice {
   invoiceDate: string;
   totalAmount: number;
   processedAt: string;
+  splits?: TrackerSplits;
 }
 
 export type ProcessingStatus = 'idle' | 'uploading' | 'analyzing' | 'complete' | 'error';
