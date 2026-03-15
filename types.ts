@@ -50,4 +50,10 @@ export interface SavedInvoice {
   splits?: TrackerSplits;
 }
 
+export interface CustomVendor {
+  id: string;
+  name: string;
+  type: 'food' | 'nonFood';
+}
+
 export type ProcessingStatus = 'idle' | 'uploading' | 'analyzing' | 'complete' | 'error';

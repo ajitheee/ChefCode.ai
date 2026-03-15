@@ -184,19 +184,19 @@ const App: React.FC = () => {
     doc.text(`Total Amount: $${result.totalAmount.toFixed(2)}`, 20, 80);
     
     doc.setFontSize(16);
-    doc.text("Category Breakdown", 20, 100);
+    doc.text("GL Code Breakdown", 20, 100);
     
-    // Calculate category breakdown
-    const categoryTotals: Record<string, number> = {};
+    // Calculate category breakdown by GL Code
+    const codeTotals: Record<string, number> = {};
     result.items.forEach(item => {
-      const cat = item.categoryName || 'Uncategorized';
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + item.totalPrice;
+      const code = item.glCode || 'Uncategorized';
+      codeTotals[code] = (codeTotals[code] || 0) + item.totalPrice;
     });
     
     let yPos = 115;
     doc.setFontSize(12);
-    Object.entries(categoryTotals).forEach(([category, total]) => {
-      doc.text(`${category}: $${total.toFixed(2)}`, 20, yPos);
+    Object.entries(codeTotals).forEach(([code, total]) => {
+      doc.text(`${code}: $${total.toFixed(2)}`, 20, yPos);
       yPos += 10;
     });
 

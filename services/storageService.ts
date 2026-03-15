@@ -1,6 +1,20 @@
-import { AnalysisResult, SavedInvoice, TrackerSplits } from '../types';
+import { AnalysisResult, SavedInvoice, TrackerSplits, CustomVendor } from '../types';
 
 const STORAGE_KEY = 'chefcode_processed_invoices';
+const VENDORS_STORAGE_KEY = 'chefcode_custom_vendors';
+
+export const getCustomVendors = (): CustomVendor[] => {
+  const data = localStorage.getItem(VENDORS_STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
+};
+
+export const addCustomVendor = (vendor: Omit<CustomVendor, 'id'>) => {
+  const vendors = getCustomVendors();
+  const newVendor = { ...vendor, id: `vendor-${Date.now()}` };
+  vendors.push(newVendor);
+  localStorage.setItem(VENDORS_STORAGE_KEY, JSON.stringify(vendors));
+  return newVendor;
+};
 
 export const getSavedInvoices = (): SavedInvoice[] => {
   const data = localStorage.getItem(STORAGE_KEY);

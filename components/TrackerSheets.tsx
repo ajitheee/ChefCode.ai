@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getSavedInvoices, updateInvoiceSplits } from '../services/storageService';
-import { SavedInvoice, TrackerSplits } from '../types';
-import { Edit2, Save, X, Table as TableIcon, List, Plus, Calculator } from 'lucide-react';
+import { getSavedInvoices, updateInvoiceSplits, getCustomVendors, addCustomVendor } from '../services/storageService';
+import { SavedInvoice, TrackerSplits, CustomVendor } from '../types';
+import { Edit2, Save, X, Table as TableIcon, List, Plus, Calculator, PieChart as PieChartIcon, Calendar, TrendingUp, DollarSign, ShoppingCart, Package } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-const FOOD_COLS = [
+const INITIAL_FOOD_COLS = [
   "SYSCO", "SunRise Produce", "Giulianos Bakery", "Performance", "Spadra", 
   "Pepsi", "Misc.", "US FOOD", "Bon Suisse", "Wismettac", "M cafe", 
   "Freshpoint", "Unistar Foods", "Southern Glazer's / Reliant Coffee", 
@@ -12,7 +13,7 @@ const FOOD_COLS = [
   "SOUTH SHORE / CORE MARK"
 ];
 
-const NON_FOOD_COLS = [
+const INITIAL_NON_FOOD_COLS = [
   "7287 - Custodial: Calico", "7155 - Laundry: Prudential", 
   "7171 - Maintenance: All Sharpened Knives", "7170 - Building/Maint: GNA Brook Fire", 
   "7326 - Expendable: IFS", "7327 - NON Expendable: IFS", 
@@ -21,9 +22,14 @@ const NON_FOOD_COLS = [
   "Misc: CINTAS, Airgas, ECO LAB, DON", "Non Expendable: Whirley Drink Works"
 ];
 
-const getFoodColumn = (vendorName: string) => {
+const getFoodColumn = (vendorName: string, customVendors: CustomVendor[]) => {
   if (!vendorName) return 'Misc.';
   const normalized = vendorName.toLowerCase();
+  
+  // Check custom vendors first
+  const customMatch = customVendors.find(v => v.type === 'food' && normalized.includes(v.name.toLowerCase()));
+  if (customMatch) return customMatch.name;
+
   if (normalized.includes('sysco')) return 'SYSCO';
   if (normalized.includes('sunrise')) return 'SunRise Produce';
   if (normalized.includes('giuliano')) return 'Giulianos Bakery';
@@ -45,9 +51,14 @@ const getFoodColumn = (vendorName: string) => {
   return 'Misc.';
 };
 
-const getNonFoodColumn = (vendorName: string, splitType: 'expendable' | 'nonExpendable' | 'other') => {
+const getNonFoodColumn = (vendorName: string, splitType: 'expendable' | 'nonExpendable' | 'other', customVendors: CustomVendor[]) => {
   if (!vendorName) return 'Misc: CINTAS, Airgas, ECO LAB, DON';
   const normalized = vendorName.toLowerCase();
+
+  // Check custom vendors first
+  const customMatch = customVendors.find(v => v.type === 'nonFood' && normalized.includes(v.name.toLowerCase()));
+  if (customMatch) return customMatch.name;
+
   if (normalized.includes('calico')) return '7287 - Custodial: Calico';
   if (normalized.includes('prudential')) return '7155 - Laundry: Prudential';
   if (normalized.includes('sharpened')) return '7171 - Maintenance: All Sharpened Knives';
@@ -71,9 +82,35 @@ const getNonFoodColumn = (vendorName: string, splitType: 'expendable' | 'nonExpe
 };
 
 const getNonFoodSplitType = (col: string): keyof TrackerSplits => {
-  if (col.includes('7326') || col.includes('Expendable: IFS') || col.includes('Expendable: Dallas') || col.includes('Expendable: SYSCO')) return 'nonFoodExpendable';
   if (col.includes('7327') || col.includes('NON Expendable') || col.includes('Non Expendable')) return 'nonFoodNonExpendable';
+  if (col.includes('7326') || col.includes('Expendable: IFS') || col.includes('Expendable: Dallas') || col.includes('Expendable: SYSCO')) return 'nonFoodExpendable';
   return 'nonFoodOther';
+};
+
+const getMonthYear = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split(/[-/.]/);
+  if (parts.length >= 3) {
+    const p1 = parseInt(parts[0], 10);
+    const p2 = parseInt(parts[1], 10);
+    const p3 = parseInt(parts[2], 10);
+    
+    if (p1 > 1000) {
+      return `${p1}-${p2.toString().padStart(2, '0')}`; // YYYY-MM
+    } else if (p1 > 12) {
+      return `${p3}-${p2.toString().padStart(2, '0')}`; // DD-MM-YYYY -> YYYY-MM
+    } else if (p2 > 12) {
+      return `${p3}-${p1.toString().padStart(2, '0')}`; // MM-DD-YYYY -> YYYY-MM
+    } else {
+      return `${p3}-${p1.toString().padStart(2, '0')}`; // MM/DD/YYYY -> YYYY-MM
+    }
+  }
+  
+  let date = new Date(dateStr.replace(/-/g, '\/'));
+  if (!isNaN(date.getTime())) {
+      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  }
+  return '';
 };
 
 const getDay = (dateStr: string) => {
@@ -126,12 +163,21 @@ interface EditingCell {
 }
 
 const TrackerSheets: React.FC = () => {
-  const [view, setView] = useState<'list' | 'excel'>('excel');
+  const [view, setView] = useState<'list' | 'excel' | 'analytics'>('excel');
   const [invoices, setInvoices] = useState<SavedInvoice[]>([]);
+  const [customVendors, setCustomVendors] = useState<CustomVendor[]>([]);
+  
+  // Month selection state
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+
+  // Add Vendor Modal state
+  const [showAddVendor, setShowAddVendor] = useState(false);
+  const [newVendorForm, setNewVendorForm] = useState({ name: '', type: 'food' as 'food' | 'nonFood' });
   
   // List view editing state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<TrackerSplits>({
+  const [editForm, setEditForm] = useState<Record<keyof TrackerSplits, string | number>>({
     food: 0, nonFoodExpendable: 0, nonFoodNonExpendable: 0, nonFoodOther: 0
   });
 
@@ -140,6 +186,8 @@ const TrackerSheets: React.FC = () => {
 
   useEffect(() => {
     const loadedInvoices = getSavedInvoices();
+    const loadedVendors = getCustomVendors();
+    setCustomVendors(loadedVendors);
     
     // Migration: Calculate splits for any old invoices that don't have them
     let needsSave = false;
@@ -178,7 +226,37 @@ const TrackerSheets: React.FC = () => {
     }
     
     setInvoices(migratedInvoices);
+
+    // Extract available months
+    const months = new Set<string>();
+    migratedInvoices.forEach(inv => {
+      const m = getMonthYear(inv.invoiceDate);
+      if (m) months.add(m);
+    });
+    
+    // Always include current month, previous month, and next 6 months
+    const now = new Date();
+    for (let i = -1; i <= 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      months.add(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
+    }
+
+    const sortedMonths = Array.from(months).sort().reverse();
+    setAvailableMonths(sortedMonths);
+    
+    if (!selectedMonth) {
+      const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+      setSelectedMonth(currentMonthStr);
+    }
   }, []);
+
+  const handleAddVendor = () => {
+    if (!newVendorForm.name.trim()) return;
+    const newVendor = addCustomVendor(newVendorForm);
+    setCustomVendors([...customVendors, newVendor]);
+    setShowAddVendor(false);
+    setNewVendorForm({ name: '', type: 'food' });
+  };
 
   // --- List View Handlers ---
   const handleEdit = (inv: SavedInvoice) => {
@@ -187,14 +265,19 @@ const TrackerSheets: React.FC = () => {
   };
 
   const handleSave = (id: string) => {
-    updateInvoiceSplits(id, editForm);
+    const splits: TrackerSplits = {
+      food: parseFloat(editForm.food as string) || 0,
+      nonFoodExpendable: parseFloat(editForm.nonFoodExpendable as string) || 0,
+      nonFoodNonExpendable: parseFloat(editForm.nonFoodNonExpendable as string) || 0,
+      nonFoodOther: parseFloat(editForm.nonFoodOther as string) || 0,
+    };
+    updateInvoiceSplits(id, splits);
     setInvoices(getSavedInvoices());
     setEditingId(null);
   };
 
   const handleChange = (field: keyof TrackerSplits, value: string) => {
-    const num = parseFloat(value) || 0;
-    setEditForm(prev => ({ ...prev, [field]: num }));
+    setEditForm(prev => ({ ...prev, [field]: value }));
   };
 
   // --- Excel View Handlers ---
@@ -209,8 +292,17 @@ const TrackerSheets: React.FC = () => {
     const diff = newTotal - editingCell.currentValue;
     
     if (diff !== 0) {
-      const year = new Date().getFullYear();
-      const month = new Date().getMonth() + 1;
+      let year = new Date().getFullYear();
+      let month = new Date().getMonth() + 1;
+      
+      if (selectedMonth) {
+        const parts = selectedMonth.split('-');
+        if (parts.length === 2) {
+          year = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10);
+        }
+      }
+      
       const dateStr = `${year}-${month.toString().padStart(2, '0')}-${editingCell.day.toString().padStart(2, '0')}`;
       
       const splits: TrackerSplits = { food: 0, nonFoodExpendable: 0, nonFoodNonExpendable: 0, nonFoodOther: 0 };
@@ -233,6 +325,21 @@ const TrackerSheets: React.FC = () => {
     setEditingCell(null);
   };
 
+  const FOOD_COLS = useMemo(() => {
+    const custom = customVendors.filter(v => v.type === 'food').map(v => v.name);
+    return [...INITIAL_FOOD_COLS, ...custom];
+  }, [customVendors]);
+
+  const NON_FOOD_COLS = useMemo(() => {
+    const custom = customVendors.filter(v => v.type === 'nonFood').map(v => v.name);
+    return [...INITIAL_NON_FOOD_COLS, ...custom];
+  }, [customVendors]);
+
+  const filteredInvoices = useMemo(() => {
+    if (!selectedMonth) return invoices;
+    return invoices.filter(inv => getMonthYear(inv.invoiceDate) === selectedMonth);
+  }, [invoices, selectedMonth]);
+
   // Generate Excel-like data
   const { foodData, nonFoodData } = useMemo(() => {
     const fData: Record<number, Record<string, number>> = {};
@@ -245,64 +352,167 @@ const TrackerSheets: React.FC = () => {
       NON_FOOD_COLS.forEach(c => nfData[i][c] = 0);
     }
 
-    invoices.forEach(inv => {
+    filteredInvoices.forEach(inv => {
       const day = getDay(inv.invoiceDate);
       const splits = inv.splits || { food: 0, nonFoodExpendable: 0, nonFoodNonExpendable: 0, nonFoodOther: 0 };
       
       if (splits.food !== 0) {
-        const col = getFoodColumn(inv.vendorName);
-        fData[day][col] += splits.food;
+        const col = getFoodColumn(inv.vendorName, customVendors);
+        if (fData[day] && fData[day][col] !== undefined) {
+            fData[day][col] += splits.food;
+        }
       }
       if (splits.nonFoodExpendable !== 0) {
-        const col = getNonFoodColumn(inv.vendorName, 'expendable');
-        nfData[day][col] += splits.nonFoodExpendable;
+        const col = getNonFoodColumn(inv.vendorName, 'expendable', customVendors);
+        if (nfData[day] && nfData[day][col] !== undefined) {
+            nfData[day][col] += splits.nonFoodExpendable;
+        }
       }
       if (splits.nonFoodNonExpendable !== 0) {
-        const col = getNonFoodColumn(inv.vendorName, 'nonExpendable');
-        nfData[day][col] += splits.nonFoodNonExpendable;
+        const col = getNonFoodColumn(inv.vendorName, 'nonExpendable', customVendors);
+        if (nfData[day] && nfData[day][col] !== undefined) {
+            nfData[day][col] += splits.nonFoodNonExpendable;
+        }
       }
       if (splits.nonFoodOther !== 0) {
-        const col = getNonFoodColumn(inv.vendorName, 'other');
-        nfData[day][col] += splits.nonFoodOther;
+        const col = getNonFoodColumn(inv.vendorName, 'other', customVendors);
+        if (nfData[day] && nfData[day][col] !== undefined) {
+            nfData[day][col] += splits.nonFoodOther;
+        }
       }
     });
 
     return { foodData: fData, nonFoodData: nfData };
-  }, [invoices]);
+  }, [filteredInvoices, FOOD_COLS, NON_FOOD_COLS, customVendors]);
+
+  // Generate Dashboard Data
+  const dashboardData = useMemo(() => {
+    let totalFoodSpend = 0;
+    let totalNonFoodSpend = 0;
+
+    const foodVendorTotals = FOOD_COLS.map(col => {
+      const total = Array.from({ length: 31 }, (_, i) => i + 1).reduce((sum, day) => sum + foodData[day][col], 0);
+      totalFoodSpend += total;
+      return { name: col, amount: total };
+    }).filter(v => v.amount > 0).sort((a, b) => b.amount - a.amount);
+
+    const nonFoodVendorTotals = NON_FOOD_COLS.map(col => {
+      const total = Array.from({ length: 31 }, (_, i) => i + 1).reduce((sum, day) => sum + nonFoodData[day][col], 0);
+      totalNonFoodSpend += total;
+      return { name: col, amount: total };
+    }).filter(v => v.amount > 0).sort((a, b) => b.amount - a.amount);
+
+    const totalSpend = totalFoodSpend + totalNonFoodSpend;
+
+    const dailyTrendData = Array.from({ length: 31 }, (_, i) => {
+      const day = i + 1;
+      const foodTotal = FOOD_COLS.reduce((sum, col) => sum + foodData[day][col], 0);
+      const nonFoodTotal = NON_FOOD_COLS.reduce((sum, col) => sum + nonFoodData[day][col], 0);
+      return {
+        day: day.toString(),
+        total: foodTotal + nonFoodTotal,
+        food: foodTotal,
+        nonFood: nonFoodTotal
+      };
+    });
+
+    const pieChartData = [...foodVendorTotals, ...nonFoodVendorTotals]
+      .sort((a, b) => b.amount - a.amount)
+      .map(v => ({
+        name: v.name,
+        value: v.amount,
+        percentage: totalSpend > 0 ? ((v.amount / totalSpend) * 100).toFixed(1) : '0'
+      }));
+
+    return {
+      totalSpend,
+      totalFoodSpend,
+      totalNonFoodSpend,
+      foodVendorTotals,
+      nonFoodVendorTotals,
+      dailyTrendData,
+      pieChartData
+    };
+  }, [foodData, nonFoodData, FOOD_COLS, NON_FOOD_COLS]);
+
+  const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#14b8a6', '#6366f1', '#d946ef'];
 
   return (
     <div className="animate-fade-in pb-12">
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Tracker Sheets</h2>
           <p className="text-slate-500 mt-1">
-            Click any cell in the Excel view to instantly edit or add a manual entry.
+            Manage your monthly tracker sheets and view spending analytics.
           </p>
         </div>
         
-        <div className="flex bg-slate-200 p-1 rounded-lg self-start shadow-inner">
-          <button
-            onClick={() => setView('excel')}
-            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-              view === 'excel' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <TableIcon size={16} className="mr-2" />
-            Excel View
-          </button>
-          <button
-            onClick={() => setView('list')}
-            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-              view === 'list' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <List size={16} className="mr-2" />
-            Invoice List
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Month Selector */}
+          <div className="flex items-center bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
+            <Calendar size={16} className="text-slate-400 mr-2" />
+            <select 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 p-0 pr-6 cursor-pointer"
+            >
+              {availableMonths.length === 0 ? (
+                <option value={selectedMonth}>{selectedMonth || 'No Data'}</option>
+              ) : (
+                availableMonths.map(m => (
+                  <option key={m} value={m}>
+                    {new Date(m + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* Add Vendor Button */}
+          {view !== 'analytics' && (
+            <button
+              onClick={() => setShowAddVendor(true)}
+              className="flex items-center px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
+            >
+              <Plus size={16} className="mr-1.5" />
+              Add Vendor
+            </button>
+          )}
+
+          {/* View Toggles */}
+          <div className="flex bg-slate-200 p-1 rounded-lg shadow-inner">
+            <button
+              onClick={() => setView('excel')}
+              className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                view === 'excel' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <TableIcon size={16} className="mr-1.5" />
+              Excel
+            </button>
+            <button
+              onClick={() => setView('list')}
+              className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                view === 'list' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <List size={16} className="mr-1.5" />
+              List
+            </button>
+            <button
+              onClick={() => setView('analytics')}
+              className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                view === 'analytics' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <PieChartIcon size={16} className="mr-1.5" />
+              Analytics
+            </button>
+          </div>
         </div>
       </div>
 
-      {view === 'list' ? (
+      {view === 'list' && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-100">
             <thead className="bg-slate-50">
@@ -383,7 +593,9 @@ const TrackerSheets: React.FC = () => {
             </tbody>
           </table>
         </div>
-      ) : (
+      )}
+
+      {view === 'excel' && (
         <div className="space-y-12">
           {/* FOOD TRACKER EXCEL VIEW */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col" style={{ maxHeight: '80vh' }}>
@@ -527,6 +739,257 @@ const TrackerSheets: React.FC = () => {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view === 'analytics' && (
+        <div className="space-y-6 animate-fade-in mb-8">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500 mb-1">Total Spend</p>
+                <h4 className="text-3xl font-bold text-slate-900">${dashboardData.totalSpend.toFixed(2)}</h4>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <DollarSign size={24} />
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500 mb-1">Food Cost</p>
+                <h4 className="text-3xl font-bold text-slate-900">${dashboardData.totalFoodSpend.toFixed(2)}</h4>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <ShoppingCart size={24} />
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500 mb-1">Non-Food Expenses</p>
+                <h4 className="text-3xl font-bold text-slate-900">${dashboardData.totalNonFoodSpend.toFixed(2)}</h4>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+                <Package size={24} />
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Area Chart */}
+            <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-slate-900">Spending Trends</h3>
+                <div className="flex items-center text-sm text-slate-500 bg-slate-50 px-3 py-1 rounded-full">
+                  <TrendingUp size={16} className="mr-2 text-orange-500" />
+                  Daily Outflow
+                </div>
+              </div>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dashboardData.dailyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(value) => `$${value}`} />
+                    <RechartsTooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Spend']}
+                      labelFormatter={(label) => `Day ${label}`}
+                    />
+                    <Area type="monotone" dataKey="total" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Pie Chart */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Vendor Distribution</h3>
+              <div className="flex-1 min-h-[300px]">
+                {dashboardData.pieChartData.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                    <PieChartIcon size={48} className="text-slate-300 mb-4" />
+                    <p>No data</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={dashboardData.pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {dashboardData.pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip 
+                        formatter={(value: number) => [`$${value.toFixed(2)}`, 'Spend']}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tables Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Food Table */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-900">Food Cost Analysis</h3>
+                <span className="text-sm font-medium text-indigo-600 cursor-pointer hover:text-indigo-800">View All</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="pb-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Vendor</th>
+                      <th className="pb-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Amount</th>
+                      <th className="pb-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">% of Food</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {dashboardData.foodVendorTotals.slice(0, 5).map((vendor) => (
+                      <tr key={vendor.name} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 text-sm font-semibold text-slate-900">{vendor.name}</td>
+                        <td className="py-3 text-sm font-bold text-orange-600 text-right">${vendor.amount.toFixed(2)}</td>
+                        <td className="py-3 text-sm font-medium text-slate-500 text-right">
+                          {dashboardData.totalFoodSpend > 0 ? ((vendor.amount / dashboardData.totalFoodSpend) * 100).toFixed(1) : 0}%
+                        </td>
+                      </tr>
+                    ))}
+                    {dashboardData.foodVendorTotals.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-8 text-center text-sm text-slate-500">No food expenses recorded.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Non-Food Table */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-900">Non-Food Expenses</h3>
+                <span className="text-sm font-medium text-indigo-600 cursor-pointer hover:text-indigo-800">View All</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="pb-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Vendor</th>
+                      <th className="pb-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Amount</th>
+                      <th className="pb-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">% of Non-Food</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {dashboardData.nonFoodVendorTotals.slice(0, 5).map((vendor) => {
+                      const displayName = vendor.name.includes(':') ? vendor.name.split(':')[1].trim() : vendor.name;
+                      return (
+                        <tr key={vendor.name} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3 text-sm font-semibold text-slate-900 truncate max-w-[150px]" title={vendor.name}>{displayName}</td>
+                          <td className="py-3 text-sm font-bold text-orange-600 text-right">${vendor.amount.toFixed(2)}</td>
+                          <td className="py-3 text-sm font-medium text-slate-500 text-right">
+                            {dashboardData.totalNonFoodSpend > 0 ? ((vendor.amount / dashboardData.totalNonFoodSpend) * 100).toFixed(1) : 0}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {dashboardData.nonFoodVendorTotals.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-8 text-center text-sm text-slate-500">No non-food expenses recorded.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD VENDOR MODAL */}
+      {showAddVendor && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center">
+                <Plus size={18} className="mr-2 text-indigo-600" />
+                Add Custom Vendor
+              </h3>
+              <button onClick={() => setShowAddVendor(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-md hover:bg-slate-200">
+                <X size={20}/>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Vendor Name</label>
+                <input 
+                  type="text" 
+                  autoFocus
+                  placeholder="e.g., Local Farmers Market"
+                  className="block w-full px-4 py-2 border-slate-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  value={newVendorForm.name}
+                  onChange={(e) => setNewVendorForm({...newVendorForm, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Tracker Type</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setNewVendorForm({...newVendorForm, type: 'food'})}
+                    className={`py-2 px-4 rounded-lg text-sm font-medium border transition-all ${
+                      newVendorForm.type === 'food' 
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm' 
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Food Tracker
+                  </button>
+                  <button
+                    onClick={() => setNewVendorForm({...newVendorForm, type: 'nonFood'})}
+                    className={`py-2 px-4 rounded-lg text-sm font-medium border transition-all ${
+                      newVendorForm.type === 'nonFood' 
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Non-Food Tracker
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-3">
+              <button 
+                onClick={() => setShowAddVendor(false)} 
+                className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleAddVendor}
+                disabled={!newVendorForm.name.trim()}
+                className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm"
+              >
+                Add Vendor
+              </button>
             </div>
           </div>
         </div>
