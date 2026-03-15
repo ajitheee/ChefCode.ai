@@ -15,14 +15,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     const totals: Record<string, number> = {};
     data.items.forEach(item => {
       const key = `${item.glCode} - ${item.categoryName}`;
-      totals[key] = (totals[key] || 0) + item.totalPrice;
+      totals[key] = (totals[key] || 0) + (parseFloat(item.totalPrice as any) || 0);
     });
     return Object.entries(totals)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
   }, [data.items]);
 
-  const totalSpend = data.totalAmount || data.items.reduce((acc, item) => acc + item.totalPrice, 0);
+  const parsedTotal = parseFloat(data.totalAmount as any);
+  const totalSpend = !isNaN(parsedTotal) && parsedTotal !== 0 ? parsedTotal : data.items.reduce((acc, item) => acc + (parseFloat(item.totalPrice as any) || 0), 0);
 
   // Address Validation Logic
   const isValidAddress = useMemo(() => {

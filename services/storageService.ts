@@ -51,20 +51,21 @@ export const saveInvoiceToHistory = (data: AnalysisResult) => {
   if (data.items && data.items.length > 0) {
     data.items.forEach(item => {
       const code = item.glCode || '';
+      const price = parseFloat(item.totalPrice as any) || 0;
       if (code.startsWith('6')) {
-        food += item.totalPrice;
+        food += price;
       } else if (code === '7326') {
-        expendable += item.totalPrice;
+        expendable += price;
       } else if (code === '7327') {
-        nonExpendable += item.totalPrice;
+        nonExpendable += price;
       } else {
         // Fallback for unknown GL codes
         if (isFoodVendor(data.vendorName)) {
-          food += item.totalPrice;
+          food += price;
         } else if (isNonFoodVendor(data.vendorName)) {
-          other += item.totalPrice;
+          other += price;
         } else {
-          other += item.totalPrice;
+          other += price;
         }
       }
     });
@@ -76,9 +77,9 @@ export const saveInvoiceToHistory = (data: AnalysisResult) => {
   // Parse totalAmount safely in case it comes back as a string or has formatting
   let parsedTotal = typeof data.totalAmount === 'string' 
     ? parseFloat((data.totalAmount as string).replace(/[^0-9.-]+/g, "")) 
-    : data.totalAmount;
+    : Number(data.totalAmount);
     
-  if (isNaN(parsedTotal)) parsedTotal = 0;
+  if (isNaN(parsedTotal) || parsedTotal === 0) parsedTotal = currentSum;
 
   const diff = parsedTotal - currentSum;
   
@@ -106,6 +107,7 @@ export const saveInvoiceToHistory = (data: AnalysisResult) => {
   };
 
   const existingIndex = invoices.findIndex(inv => 
+    inv.invoiceNumber && data.invoiceNumber && 
     inv.invoiceNumber === data.invoiceNumber && 
     inv.vendorName === data.vendorName
   );

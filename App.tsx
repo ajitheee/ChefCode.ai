@@ -74,9 +74,20 @@ const App: React.FC = () => {
 
   const handleUpdateItem = (id: string, field: keyof InvoiceItem, value: any) => {
     if (!result) return;
-    const updatedItems = result.items.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    );
+    const updatedItems = result.items.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        // Recalculate totalPrice if quantity or unitPrice changes
+        if (field === 'quantity' || field === 'unitPrice') {
+          const qty = parseFloat(updatedItem.quantity as any) || 0;
+          const price = parseFloat(updatedItem.unitPrice as any) || 0;
+          updatedItem.totalPrice = qty * price;
+        }
+        return updatedItem;
+      }
+      return item;
+    });
+    
     setResult({ ...result, items: updatedItems });
   };
 
@@ -169,7 +180,8 @@ const App: React.FC = () => {
     const cleanVendor = getCleanVendorName(result.vendorName);
     const safeVendor = cleanVendor.replace(/[/\\?%*:|"<>]/g, '-');
     const safeInvNum = (result.invoiceNumber || "UnknownInvoice").replace(/[/\\?%*:|"<>]/g, '-');
-    const fileName = `F02124 ${safeVendor} ${safeInvNum} $${result.totalAmount.toFixed(2)}.pdf`;
+    const totalAmt = parseFloat(result.totalAmount as any) || 0;
+    const fileName = `F02124 ${safeVendor} ${safeInvNum} $${totalAmt.toFixed(2)}.pdf`;
 
     const doc = new jsPDF();
     
@@ -181,7 +193,7 @@ const App: React.FC = () => {
     doc.text(`Vendor Name: ${result.vendorName}`, 20, 50);
     doc.text(`Invoice Date: ${result.invoiceDate || 'N/A'}`, 20, 60);
     doc.text(`Invoice Number: ${result.invoiceNumber || 'N/A'}`, 20, 70);
-    doc.text(`Total Amount: $${result.totalAmount.toFixed(2)}`, 20, 80);
+    doc.text(`Total Amount: $${totalAmt.toFixed(2)}`, 20, 80);
     
     doc.setFontSize(16);
     doc.text("GL Code Breakdown", 20, 100);
@@ -190,7 +202,7 @@ const App: React.FC = () => {
     const codeTotals: Record<string, number> = {};
     result.items.forEach(item => {
       const code = item.glCode || 'Uncategorized';
-      codeTotals[code] = (codeTotals[code] || 0) + item.totalPrice;
+      codeTotals[code] = (codeTotals[code] || 0) + (parseFloat(item.totalPrice as any) || 0);
     });
     
     let yPos = 115;
@@ -508,6 +520,45 @@ const App: React.FC = () => {
                        View Original Invoice
                      </button>
                    )}
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                   <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                     <label className="block text-sm font-medium text-slate-700 mb-1">Invoice Date</label>
+                     <input 
+                       type="text" 
+                       value={result.invoiceDate || ''} 
+                       onChange={(e) => setResult({...result, invoiceDate: e.target.value})}
+                       className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                       placeholder="YYYY-MM-DD"
+                     />
+                   </div>
+                   <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                     <label className="block text-sm font-medium text-slate-700 mb-1">Invoice Number</label>
+                     <input 
+                       type="text" 
+                       value={result.invoiceNumber || ''} 
+                       onChange={(e) => setResult({...result, invoiceNumber: e.target.value})}
+                       className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                       placeholder="Invoice #"
+                     />
+                   </div>
+                   <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                     <label className="block text-sm font-medium text-slate-700 mb-1">Total Amount</label>
+                     <div className="relative">
+                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                         <span className="text-slate-500 sm:text-sm">$</span>
+                       </div>
+                       <input 
+                         type="number" 
+                         step="0.01"
+                         value={result.totalAmount === 0 ? '' : result.totalAmount} 
+                         onChange={(e) => setResult({...result, totalAmount: e.target.value as any})}
+                         className="w-full rounded-md border-slate-300 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                         placeholder="0.00"
+                       />
+                     </div>
+                   </div>
                  </div>
 
                 <Dashboard data={result} />

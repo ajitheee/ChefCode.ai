@@ -84,7 +84,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                   <input 
                     type="number" 
                     value={item.quantity}
-                    onChange={(e) => onUpdateItem(item.id, 'quantity', parseFloat(e.target.value))}
+                    onChange={(e) => onUpdateItem(item.id, 'quantity', e.target.value)}
                     className="w-full bg-transparent border-none focus:ring-0 p-0 text-sm text-right"
                   />
                 </td>
@@ -94,14 +94,14 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                     <input 
                       type="number" 
                       value={item.unitPrice}
-                      onChange={(e) => onUpdateItem(item.id, 'unitPrice', parseFloat(e.target.value))}
+                      onChange={(e) => onUpdateItem(item.id, 'unitPrice', e.target.value)}
                       className="w-20 bg-transparent border-none focus:ring-0 p-0 text-sm text-right"
                       step="0.01"
                     />
                    </div>
                 </td>
                 <td className="px-6 py-4 text-right font-semibold text-slate-900">
-                  ${(item.quantity * item.unitPrice).toFixed(2)}
+                  ${(parseFloat(item.totalPrice as any) || 0).toFixed(2)}
                 </td>
                 <td className="px-6 py-4">
                   <select

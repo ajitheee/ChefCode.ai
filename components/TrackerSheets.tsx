@@ -89,33 +89,44 @@ const getNonFoodSplitType = (col: string): keyof TrackerSplits => {
 
 const getMonthYear = (dateStr: string) => {
   if (!dateStr) return '';
+  
+  // Try standard parsing first
+  let date = new Date(dateStr.replace(/-/g, '\/'));
+  if (!isNaN(date.getTime())) {
+      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  }
+
   const parts = dateStr.split(/[-/.]/);
   if (parts.length >= 3) {
     const p1 = parseInt(parts[0], 10);
     const p2 = parseInt(parts[1], 10);
     const p3 = parseInt(parts[2], 10);
     
-    if (p1 > 1000) {
-      return `${p1}-${p2.toString().padStart(2, '0')}`; // YYYY-MM
-    } else if (p1 > 12) {
-      return `${p3}-${p2.toString().padStart(2, '0')}`; // DD-MM-YYYY -> YYYY-MM
-    } else if (p2 > 12) {
-      return `${p3}-${p1.toString().padStart(2, '0')}`; // MM-DD-YYYY -> YYYY-MM
-    } else {
-      return `${p3}-${p1.toString().padStart(2, '0')}`; // MM/DD/YYYY -> YYYY-MM
+    if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+      if (p1 > 1000) {
+        return `${p1}-${p2.toString().padStart(2, '0')}`; // YYYY-MM
+      } else if (p1 > 12) {
+        return `${p3}-${p2.toString().padStart(2, '0')}`; // DD-MM-YYYY -> YYYY-MM
+      } else if (p2 > 12) {
+        return `${p3}-${p1.toString().padStart(2, '0')}`; // MM-DD-YYYY -> YYYY-MM
+      } else {
+        return `${p3}-${p1.toString().padStart(2, '0')}`; // MM/DD/YYYY -> YYYY-MM
+      }
     }
   }
   
-  let date = new Date(dateStr.replace(/-/g, '\/'));
-  if (!isNaN(date.getTime())) {
-      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-  }
   return '';
 };
 
 const getDay = (dateStr: string) => {
   if (!dateStr) return 1;
   
+  // Try standard parsing first
+  let date = new Date(dateStr.replace(/-/g, '\/'));
+  if (!isNaN(date.getTime())) {
+      return date.getDate();
+  }
+
   // Try parsing YYYY-MM-DD or MM/DD/YYYY or DD-MM-YYYY
   const parts = dateStr.split(/[-/.]/);
   if (parts.length >= 3) {
@@ -123,25 +134,21 @@ const getDay = (dateStr: string) => {
     const p2 = parseInt(parts[1], 10);
     const p3 = parseInt(parts[2], 10);
     
-    if (p1 > 1000) {
-      // YYYY-MM-DD
-      return p3;
-    } else if (p1 > 12) {
-      // DD-MM-YYYY
-      return p1;
-    } else if (p2 > 12) {
-      // MM-DD-YYYY
-      return p2;
-    } else {
-      // Ambiguous, assume MM/DD/YYYY which is US standard
-      return p2;
+    if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+      if (p1 > 1000) {
+        // YYYY-MM-DD
+        return p3;
+      } else if (p1 > 12) {
+        // DD-MM-YYYY
+        return p1;
+      } else if (p2 > 12) {
+        // MM-DD-YYYY
+        return p2;
+      } else {
+        // Ambiguous, assume MM/DD/YYYY which is US standard
+        return p2;
+      }
     }
-  }
-  
-  // Try standard parsing first, but replace hyphens with slashes to avoid UTC parsing issues
-  let date = new Date(dateStr.replace(/-/g, '\/'));
-  if (!isNaN(date.getTime())) {
-      return date.getDate();
   }
   
   // Extract any number as a fallback
@@ -245,8 +252,21 @@ const TrackerSheets: React.FC = () => {
     setAvailableMonths(sortedMonths);
     
     if (!selectedMonth) {
-      const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-      setSelectedMonth(currentMonthStr);
+      let defaultMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+      
+      // Try to find the most recently processed invoice
+      if (migratedInvoices.length > 0) {
+        const sortedByProcessed = [...migratedInvoices].sort((a, b) => {
+          return new Date(b.processedAt).getTime() - new Date(a.processedAt).getTime();
+        });
+        
+        const latestProcessedMonth = getMonthYear(sortedByProcessed[0].invoiceDate);
+        if (latestProcessedMonth) {
+          defaultMonthStr = latestProcessedMonth;
+        }
+      }
+      
+      setSelectedMonth(defaultMonthStr);
     }
   }, []);
 
