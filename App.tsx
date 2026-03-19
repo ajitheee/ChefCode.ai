@@ -67,7 +67,7 @@ const App: React.FC = () => {
       setStatus('complete');
     } catch (err: any) {
       console.error(err);
-      setErrorMsg("Failed to analyze invoice. Please try again or check your API key.");
+      setErrorMsg(err.message || "Failed to analyze invoice. Please try again or check your API key.");
       setStatus('error');
     }
   };

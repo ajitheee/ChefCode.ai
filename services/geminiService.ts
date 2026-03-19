@@ -8,9 +8,28 @@ let ai: GoogleGenAI | null = null;
 
 const getAiClient = () => {
   if (!ai) {
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.VITE_API_KEY;
+    let apiKey = '';
+    
+    // Try Vite environment variables first
+    try {
+      if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+        apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.VITE_API_KEY || '';
+      }
+    } catch (e) {
+      // Ignore
+    }
+    
+    // Try process.env as fallback (for AI Studio/Node environments or Vite define replacements)
     if (!apiKey) {
-      throw new Error("API Key is missing. Please add it to your environment variables.");
+      try {
+        apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      } catch (e) {
+        // Ignore ReferenceError if process is not defined
+      }
+    }
+
+    if (!apiKey) {
+      throw new Error("API Key is missing. Please add it to your environment variables in Vercel.");
     }
     ai = new GoogleGenAI({ apiKey });
   }
