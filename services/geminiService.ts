@@ -111,18 +111,37 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string =
     const text = response.text;
     if (!text) throw new Error("No response from AI");
 
-    const data = JSON.parse(text);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("Failed to parse AI response:", text);
+      throw new Error("Invalid response format from AI");
+    }
+
+    const items = Array.isArray(data.items) ? data.items : [];
 
     return {
-      ...data,
-      items: data.items.map((item: any, index: number) => ({
-        ...item,
-        id: `item-${Date.now()}-${index}`,
-        quantity: item.quantity || 1,
-        totalPrice: item.totalPrice || 0,
-        unitPrice: item.unitPrice || 0,
-        isDatabaseMatch: item.isDatabaseMatch || false
-      }))
+      vendorName: String(data.vendorName || "Unknown Vendor"),
+      invoiceNumber: String(data.invoiceNumber || ""),
+      invoiceDate: String(data.invoiceDate || ""),
+      deliveryAddress: String(data.deliveryAddress || ""),
+      totalAmount: Number(data.totalAmount) || 0,
+      items: items.map((rawItem: any, index: number) => {
+        const item = rawItem || {};
+        return {
+          id: `item-${Date.now()}-${index}`,
+          productNumber: item.productNumber ? String(item.productNumber) : undefined,
+          description: String(item.description || "Unknown Item"),
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unitPrice) || 0,
+          totalPrice: Number(item.totalPrice) || 0,
+          glCode: String(item.glCode || ""),
+          categoryName: String(item.categoryName || ""),
+          confidence: Number(item.confidence) || 1,
+          isDatabaseMatch: Boolean(item.isDatabaseMatch)
+        };
+      })
     };
 
   } catch (error) {

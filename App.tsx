@@ -429,7 +429,7 @@ const App: React.FC = () => {
                 </button>
               </div>
            </div>
-        ) : status === 'idle' || status === 'uploading' || status === 'analyzing' ? (
+        ) : status === 'idle' || status === 'uploading' || status === 'analyzing' || status === 'error' ? (
           <div className="max-w-3xl mx-auto mt-12">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
@@ -597,7 +597,7 @@ const App: React.FC = () => {
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg z-40">
            <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
               <p className="text-sm text-slate-500 hidden sm:block">
-                 Found {result?.items.length} items totaling ${result?.totalAmount.toFixed(2)}
+                 Found {result?.items.length} items totaling ${(parseFloat(result?.totalAmount as any) || 0).toFixed(2)}
               </p>
               <div className="flex gap-4 ml-auto">
                  <button 
