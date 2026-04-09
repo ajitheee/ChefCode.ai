@@ -1,7 +1,8 @@
 import React from 'react';
 import { InvoiceItem, GLCode } from '../types';
 import { GL_CODES } from '../constants';
-import { Trash2, AlertCircle, CheckCircle, Database, Plus } from 'lucide-react';
+import { Trash2, AlertCircle, CheckCircle, Database, Plus, TrendingUp } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface InvoiceTableProps {
   items: InvoiceItem[];
@@ -38,8 +39,14 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {items.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
+            {items.map((item, index) => (
+              <motion.tr 
+                key={item.id} 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="hover:bg-slate-50 transition-colors group"
+              >
                 <td className="px-6 py-4 font-medium text-slate-900">
                   <div className="flex items-start">
                     <div className="flex-1">
@@ -89,15 +96,23 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                   />
                 </td>
                 <td className="px-6 py-4 text-right">
-                   <div className="flex items-center justify-end">
-                    <span className="text-slate-400 mr-1">$</span>
-                    <input 
-                      type="number" 
-                      value={item.unitPrice}
-                      onChange={(e) => onUpdateItem(item.id, 'unitPrice', e.target.value)}
-                      className="w-20 bg-transparent border-none focus:ring-0 p-0 text-sm text-right"
-                      step="0.01"
-                    />
+                   <div className="flex flex-col items-end">
+                     <div className="flex items-center justify-end">
+                      <span className="text-slate-400 mr-1">$</span>
+                      <input 
+                        type="number" 
+                        value={item.unitPrice}
+                        onChange={(e) => onUpdateItem(item.id, 'unitPrice', e.target.value)}
+                        className="w-20 bg-transparent border-none focus:ring-0 p-0 text-sm text-right"
+                        step="0.01"
+                      />
+                     </div>
+                     {item.priceSpike && item.historicalPrice && (
+                       <div className="flex items-center text-xs text-red-600 mt-1" title={`Price increased from $${item.historicalPrice.toFixed(2)}`}>
+                         <TrendingUp size={12} className="mr-1" />
+                         Spike (was ${item.historicalPrice.toFixed(2)})
+                       </div>
+                     )}
                    </div>
                 </td>
                 <td className="px-6 py-4 text-right font-semibold text-slate-900">
@@ -131,7 +146,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                     <Trash2 size={16} />
                   </button>
                 </td>
-              </tr>
+              </motion.tr>
             ))}
             {items.length === 0 && (
                 <tr>

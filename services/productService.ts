@@ -26,3 +26,22 @@ export const saveNewProduct = (product: Product) => {
     localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(custom));
   }
 };
+
+export const importProductsFromExcel = (products: Product[]) => {
+  const custom = getCustomProducts();
+  let addedCount = 0;
+
+  products.forEach(product => {
+    const exists = custom.some(p => p.productNo === product.productNo || p.description === product.description);
+    if (!exists) {
+      custom.push(product);
+      addedCount++;
+    }
+  });
+
+  if (addedCount > 0) {
+    localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(custom));
+  }
+  
+  return addedCount;
+};

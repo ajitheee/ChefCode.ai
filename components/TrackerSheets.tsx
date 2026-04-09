@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getSavedInvoices, updateInvoiceSplits, getCustomVendors, addCustomVendor } from '../services/storageService';
 import { SavedInvoice, TrackerSplits, CustomVendor } from '../types';
-import { Edit2, Save, X, Table as TableIcon, List, Plus, Calculator, PieChart as PieChartIcon, Calendar, TrendingUp, DollarSign, ShoppingCart, Package } from 'lucide-react';
+import { exportAllToCSV } from '../utils/csvExport';
+import { Edit2, Save, X, Table as TableIcon, List, Plus, Calculator, PieChart as PieChartIcon, Calendar, TrendingUp, DollarSign, ShoppingCart, Package, Download } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 const INITIAL_FOOD_COLS = [
@@ -169,7 +170,11 @@ interface EditingCell {
   newValue: string;
 }
 
-const TrackerSheets: React.FC = () => {
+interface TrackerSheetsProps {
+  location?: string;
+}
+
+const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
   const [view, setView] = useState<'list' | 'excel' | 'analytics'>('excel');
   const [invoices, setInvoices] = useState<SavedInvoice[]>([]);
   const [customVendors, setCustomVendors] = useState<CustomVendor[]>([]);
@@ -356,9 +361,15 @@ const TrackerSheets: React.FC = () => {
   }, [customVendors]);
 
   const filteredInvoices = useMemo(() => {
-    if (!selectedMonth) return invoices;
-    return invoices.filter(inv => getMonthYear(inv.invoiceDate) === selectedMonth);
-  }, [invoices, selectedMonth]);
+    let filtered = invoices;
+    if (location) {
+      filtered = filtered.filter(inv => (inv.location || 'Centerpointe') === location);
+    }
+    if (selectedMonth) {
+      filtered = filtered.filter(inv => getMonthYear(inv.invoiceDate) === selectedMonth);
+    }
+    return filtered;
+  }, [invoices, selectedMonth, location]);
 
   // Generate Excel-like data
   const { foodData, nonFoodData } = useMemo(() => {
@@ -490,13 +501,22 @@ const TrackerSheets: React.FC = () => {
 
           {/* Add Vendor Button */}
           {view !== 'analytics' && (
-            <button
-              onClick={() => setShowAddVendor(true)}
-              className="flex items-center px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
-            >
-              <Plus size={16} className="mr-1.5" />
-              Add Vendor
-            </button>
+            <>
+              <button
+                onClick={() => exportAllToCSV(filteredInvoices)}
+                className="flex items-center px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <Download size={16} className="mr-1.5" />
+                Export CSV
+              </button>
+              <button
+                onClick={() => setShowAddVendor(true)}
+                className="flex items-center px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <Plus size={16} className="mr-1.5" />
+                Add Vendor
+              </button>
+            </>
           )}
 
           {/* View Toggles */}

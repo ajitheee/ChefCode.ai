@@ -29,6 +29,8 @@ export interface InvoiceItem {
   categoryName: string;
   confidence: number; // 0-1 score from AI
   isDatabaseMatch?: boolean; // New flag for UI
+  historicalPrice?: number; // For price spike alerts
+  priceSpike?: boolean; // For price spike alerts
 }
 
 export interface AnalysisResult {
@@ -38,6 +40,7 @@ export interface AnalysisResult {
   deliveryAddress?: string; // New field for address verification
   items: InvoiceItem[];
   totalAmount: number;
+  location?: string; // Multi-location support
 }
 
 export interface SavedInvoice {
@@ -48,6 +51,8 @@ export interface SavedInvoice {
   totalAmount: number;
   processedAt: string;
   splits?: TrackerSplits;
+  items?: InvoiceItem[]; // Save items for historical price tracking
+  location?: string; // Multi-location support
 }
 
 export interface CustomVendor {
@@ -57,3 +62,5 @@ export interface CustomVendor {
 }
 
 export type ProcessingStatus = 'idle' | 'uploading' | 'analyzing' | 'complete' | 'error';
+
+export type UserRole = 'admin' | 'chef' | null;

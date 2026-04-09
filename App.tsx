@@ -1,19 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FileUpload from './components/FileUpload';
 import Dashboard from './components/Dashboard';
 import InvoiceTable from './components/InvoiceTable';
 import AddProductModal from './components/AddProductModal';
 import TrackerSheets from './components/TrackerSheets';
-import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product } from './types';
+import { AdminPanel } from './components/AdminPanel';
+import { Login } from './components/Login';
+import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product, UserRole } from './types';
 import { analyzeInvoiceImage } from './services/geminiService';
-import { saveInvoiceToHistory, checkForDuplicate } from './services/storageService';
+import { saveInvoiceToHistory, checkForDuplicate, getSavedInvoices } from './services/storageService';
 import { saveNewProduct } from './services/productService';
-import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, FileText, ExternalLink, LayoutDashboard, TableProperties } from 'lucide-react';
+import { exportInvoiceToCSV } from './utils/csvExport';
+import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
+import { motion, AnimatePresence } from 'motion/react';
+
+const LOCATIONS = ['Centerpointe', '3801 W Temple', 'Location C'];
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'processor' | 'trackers'>('processor');
+  const [currentUser, setCurrentUser] = useState<UserRole>(null);
+  const [currentLocation, setCurrentLocation] = useState<string>('Centerpointe');
+  
+  const [activeTab, setActiveTab] = useState<'processor' | 'trackers' | 'admin'>('processor');
   const [status, setStatus] = useState<ProcessingStatus>('idle');
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -24,6 +33,37 @@ const App: React.FC = () => {
   // State for Add Product Modal
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [productToAdd, setProductToAdd] = useState<InvoiceItem | null>(null);
+  const [recentInvoices, setRecentInvoices] = useState<SavedInvoice[]>([]);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('chefcode_user') as UserRole;
+    if (savedUser) setCurrentUser(savedUser);
+    
+    const savedLoc = localStorage.getItem('chefcode_location');
+    if (savedLoc) setCurrentLocation(savedLoc);
+
+    const loadRecent = async () => {
+      const invoices = await getSavedInvoices();
+      setRecentInvoices(invoices.slice(0, 5));
+    };
+    loadRecent();
+  }, []);
+
+  const handleLogin = (role: UserRole) => {
+    setCurrentUser(role);
+    localStorage.setItem('chefcode_user', role || '');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('chefcode_user');
+  };
+
+  const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const loc = e.target.value;
+    setCurrentLocation(loc);
+    localStorage.setItem('chefcode_location', loc);
+  };
 
   // Helper to convert file to base64 and extract mimeType
   const processFile = (file: File): Promise<{ base64: string, mimeType: string }> => {
@@ -57,6 +97,32 @@ const App: React.FC = () => {
       setStatus('analyzing');
       const data = await analyzeInvoiceImage(base64, mimeType);
       
+      data.location = currentLocation;
+
+      // Check for price spikes
+      const history = getSavedInvoices();
+      const enrichedItems = data.items.map(item => {
+        let lastPrice: number | null = null;
+        // Search history (assuming newest is last, so we search backwards)
+        for (let i = history.length - 1; i >= 0; i--) {
+          const inv = history[i];
+          if (inv.items) {
+            const matched = inv.items.find(historyItem => 
+              historyItem.description === item.description || 
+              (historyItem.productNumber && historyItem.productNumber === item.productNumber)
+            );
+            if (matched && matched.unitPrice) {
+              lastPrice = matched.unitPrice;
+              break;
+            }
+          }
+        }
+        
+        const isSpike = lastPrice !== null && item.unitPrice > lastPrice * 1.10; // 10% spike
+        return { ...item, historicalPrice: lastPrice || undefined, priceSpike: isSpike };
+      });
+      data.items = enrichedItems;
+
       // Check for duplicates
       const duplicate = checkForDuplicate(data);
       if (duplicate) {
@@ -336,100 +402,198 @@ const App: React.FC = () => {
     }
   };
 
+  const isValidAddress = result?.deliveryAddress ? (
+    result.deliveryAddress.toUpperCase().includes("CENTERPOINTE") || 
+    result.deliveryAddress.toUpperCase().includes("3801 W TEMPLE") || 
+    result.deliveryAddress.toUpperCase().includes("3801 WEST TEMPLE")
+  ) : false;
+
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 flex items-center text-indigo-600 bg-indigo-50 p-2 rounded-lg">
-                <ChefHat size={24} />
-              </div>
-              <div className="ml-3 mr-8">
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">ChefCode<span className="text-indigo-600">.ai</span></h1>
-                <p className="text-xs text-slate-500">Automated Culinary Ledger</p>
-              </div>
-              
-              <div className="hidden sm:flex space-x-2">
-                <button
-                  onClick={() => setActiveTab('processor')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center ${
-                    activeTab === 'processor' 
-                      ? 'bg-indigo-50 text-indigo-700' 
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                  }`}
-                >
-                  <LayoutDashboard size={16} className="mr-2" />
-                  Invoice Processor
-                </button>
-                <button
-                  onClick={() => setActiveTab('trackers')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center ${
-                    activeTab === 'trackers' 
-                      ? 'bg-indigo-50 text-indigo-700' 
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                  }`}
-                >
-                  <TableProperties size={16} className="mr-2" />
-                  Tracker Sheets
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-               {activeTab === 'processor' && status === 'complete' && (
-                 <>
-                   <button 
-                    onClick={handleReset}
-                    className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                   >
-                     <RotateCcw size={16} className="mr-2" />
-                     New Scan
-                   </button>
-                   <button 
-                    onClick={handleDownloadUpdatedInvoice}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                   >
-                     <Download size={16} className="mr-2" />
-                     Download Updated Invoice
-                   </button>
-                 </>
-               )}
-            </div>
+    <div className="min-h-screen bg-slate-50 flex">
+      {/* Sidebar Navigation */}
+      <aside className="w-64 bg-slate-900 text-white flex flex-col hidden md:flex flex-shrink-0">
+        <div className="h-16 flex items-center px-6 bg-slate-950 border-b border-slate-800">
+          <div className="flex items-center text-indigo-400 bg-indigo-500/10 p-2 rounded-lg">
+            <ChefHat size={24} />
+          </div>
+          <div className="ml-3">
+            <h1 className="text-lg font-bold tracking-tight text-white">ChefCode<span className="text-indigo-400">.ai</span></h1>
           </div>
         </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {activeTab === 'trackers' ? (
-          <TrackerSheets />
-        ) : isSaved ? (
-           <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-              <div className="bg-green-100 p-4 rounded-full text-green-600 mb-4">
-                <CheckCircle2 size={48} />
-              </div>
-              <h2 className="text-2xl font-bold text-slate-900">Invoice Saved!</h2>
-              <p className="text-slate-500 mt-2 mb-8">Your invoice has been successfully processed and saved.</p>
-              <div className="flex gap-4">
-                <button 
-                  onClick={handleDownloadUpdatedInvoice}
-                  className="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <Download size={20} className="mr-2" />
-                  Download Updated Invoice
-                </button>
-                <button 
+        <div className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
+          <p className="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Menu</p>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setActiveTab('processor')}
+            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
+              activeTab === 'processor' 
+                ? 'bg-indigo-500/10 text-indigo-400' 
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+          >
+            {activeTab === 'processor' && (
+              <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-full" />
+            )}
+            <LayoutDashboard size={18} className="mr-3" />
+            Invoice Processor
+          </motion.button>
+          {currentUser === 'admin' && (
+            <>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setActiveTab('trackers')}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
+                  activeTab === 'trackers' 
+                    ? 'bg-indigo-500/10 text-indigo-400' 
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                }`}
+              >
+                {activeTab === 'trackers' && (
+                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-full" />
+                )}
+                <TableProperties size={18} className="mr-3" />
+                Tracker Sheets
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setActiveTab('admin')}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
+                  activeTab === 'admin' 
+                    ? 'bg-indigo-500/10 text-indigo-400' 
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                }`}
+              >
+                {activeTab === 'admin' && (
+                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-full" />
+                )}
+                <Database size={18} className="mr-3" />
+                Admin Panel
+              </motion.button>
+            </>
+          )}
+        </div>
+
+        <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-4">
+          <div className="flex items-center bg-slate-900 rounded-lg px-3 py-2 border border-slate-700">
+            <MapPin size={16} className="text-slate-400 mr-2" />
+            <select 
+              value={currentLocation} 
+              onChange={handleLocationChange}
+              className="bg-transparent border-none text-sm font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full"
+            >
+              {LOCATIONS.map(loc => (
+                <option key={loc} value={loc} className="bg-slate-900">{loc}</option>
+              ))}
+            </select>
+          </div>
+          
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+          >
+            <LogOut size={18} className="mr-3" />
+            Sign Out
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Wrapper */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top Header (Mobile Nav & Actions) */}
+        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 flex-shrink-0">
+          <div className="flex items-center">
+            {/* Mobile Menu Toggle (Placeholder) */}
+            <button className="md:hidden p-2 mr-3 text-slate-500 hover:bg-slate-100 rounded-md">
+              <Menu size={20} />
+            </button>
+            <h2 className="text-xl font-semibold text-slate-800">
+              {activeTab === 'processor' ? 'Invoice Processor' : activeTab === 'trackers' ? 'Tracker Sheets' : 'Admin Panel'}
+            </h2>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-3">
+             {activeTab === 'processor' && status === 'complete' && (
+               <>
+                 <button 
                   onClick={handleReset}
-                  className="inline-flex items-center px-6 py-3 border border-slate-300 shadow-sm text-base font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <RotateCcw size={20} className="mr-2" />
-                  New Scan
-                </button>
-              </div>
-           </div>
-        ) : status === 'idle' || status === 'uploading' || status === 'analyzing' || status === 'error' ? (
+                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                 >
+                   <RotateCcw size={16} className="mr-2" />
+                   New Scan
+                 </button>
+                 <button 
+                  onClick={() => result && exportInvoiceToCSV(result as SavedInvoice)}
+                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                 >
+                   <Download size={16} className="mr-2" />
+                   CSV
+                 </button>
+                 <button 
+                  onClick={handleDownloadUpdatedInvoice}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                 >
+                   <Download size={16} className="mr-2" />
+                   PDF
+                 </button>
+               </>
+             )}
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${activeTab}-${status}-${isSaved}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'admin' ? (
+                  <AdminPanel />
+                ) : activeTab === 'trackers' ? (
+                  <TrackerSheets location={currentLocation} />
+                ) : isSaved ? (
+               <div className="flex flex-col items-center justify-center py-20">
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", bounce: 0.5 }}
+                    className="bg-green-100 p-4 rounded-full text-green-600 mb-4"
+                  >
+                    <CheckCircle2 size={48} />
+                  </motion.div>
+                  <h2 className="text-2xl font-bold text-slate-900">Invoice Saved!</h2>
+                  <p className="text-slate-500 mt-2 mb-8">Your invoice has been successfully processed and saved.</p>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={handleDownloadUpdatedInvoice}
+                      className="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all hover:shadow-md"
+                    >
+                      <Download size={20} className="mr-2" />
+                      Download Updated Invoice
+                    </button>
+                    <button 
+                      onClick={handleReset}
+                      className="inline-flex items-center px-6 py-3 border border-slate-300 shadow-sm text-base font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all hover:shadow-md"
+                    >
+                      <RotateCcw size={20} className="mr-2" />
+                      New Scan
+                    </button>
+                  </div>
+               </div>
+            ) : status === 'idle' || status === 'uploading' || status === 'analyzing' || status === 'error' ? (
           <div className="max-w-3xl mx-auto mt-12">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
@@ -481,6 +645,57 @@ const App: React.FC = () => {
                 </p>
               </div>
             </div>
+            
+            <div className="mt-16 border-t border-slate-200 pt-12">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-slate-900 flex items-center">
+                  <Calendar className="mr-2 text-indigo-500" size={24} />
+                  Recent Activity
+                </h3>
+                <button 
+                  onClick={() => setActiveTab('trackers')}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center"
+                >
+                  View All <ExternalLink size={14} className="ml-1" />
+                </button>
+              </div>
+
+              {recentInvoices.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {recentInvoices.map((invoice, idx) => (
+                    <motion.div 
+                      key={invoice.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                          <FileText size={20} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{invoice.vendorName || 'Unknown Vendor'}</p>
+                          <p className="text-xs text-slate-500 flex items-center mt-0.5">
+                            <Hash size={12} className="mr-1" /> {invoice.invoiceNumber || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-slate-900">${parseFloat(invoice.totalAmount as any || 0).toFixed(2)}</p>
+                        <p className="text-xs text-slate-500">{new Date(invoice.processedAt).toLocaleDateString()}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+                  <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                  <h4 className="text-sm font-medium text-slate-900">No recent invoices</h4>
+                  <p className="text-sm text-slate-500 mt-1">Upload your first invoice to see it here.</p>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-8 pb-20">
@@ -506,15 +721,20 @@ const App: React.FC = () => {
             {result && (
               <>
                  {/* Explicit Review Header */}
-                 <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
-                   <div className="flex items-center space-x-2">
-                     <FileText className="text-indigo-600" size={28} />
-                     <h2 className="text-2xl font-bold text-slate-900">Invoice Review</h2>
+                 <div className="flex items-center justify-between mb-6">
+                   <div className="flex items-center space-x-3">
+                     <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                       <FileText size={24} />
+                     </div>
+                     <div>
+                       <h2 className="text-2xl font-bold text-slate-900">Invoice Review</h2>
+                       <p className="text-sm text-slate-500">Verify extracted details before saving</p>
+                     </div>
                    </div>
                    {previewImage && (
                      <button
                        onClick={handleOpenPreview}
-                       className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                       className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                      >
                        <ExternalLink size={16} className="mr-2" />
                        View Original Invoice
@@ -522,41 +742,100 @@ const App: React.FC = () => {
                    )}
                  </div>
 
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                   <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                     <label className="block text-sm font-medium text-slate-700 mb-1">Invoice Date</label>
-                     <input 
-                       type="text" 
-                       value={result.invoiceDate || ''} 
-                       onChange={(e) => setResult({...result, invoiceDate: e.target.value})}
-                       className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                       placeholder="YYYY-MM-DD"
-                     />
+                 {/* Unified Invoice Details Card */}
+                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                   {/* Address Verification Banner */}
+                   <div className={`px-6 py-4 border-b flex items-start space-x-3 ${isValidAddress ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}>
+                      {isValidAddress ? (
+                         <CheckCircle className="text-emerald-600 flex-shrink-0 mt-0.5" size={20} />
+                      ) : (
+                         <AlertTriangle className="text-rose-600 flex-shrink-0 mt-0.5" size={20} />
+                      )}
+                      <div>
+                         <h4 className={`text-sm font-semibold ${isValidAddress ? 'text-emerald-900' : 'text-rose-900'}`}>
+                             {isValidAddress ? 'Delivery Address Verified' : 'Warning: Delivery Address Mismatch'}
+                         </h4>
+                         <p className={`text-xs mt-0.5 ${isValidAddress ? 'text-emerald-700' : 'text-rose-700'}`}>
+                             Detected: {result.deliveryAddress || "Not found"}
+                         </p>
+                         {!isValidAddress && (
+                             <p className="text-xs text-rose-600 mt-1 font-medium">
+                                 Please verify this invoice is for the correct location (Centerpointe or 3801 W Temple).
+                             </p>
+                         )}
+                      </div>
                    </div>
-                   <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                     <label className="block text-sm font-medium text-slate-700 mb-1">Invoice Number</label>
-                     <input 
-                       type="text" 
-                       value={result.invoiceNumber || ''} 
-                       onChange={(e) => setResult({...result, invoiceNumber: e.target.value})}
-                       className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                       placeholder="Invoice #"
-                     />
-                   </div>
-                   <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                     <label className="block text-sm font-medium text-slate-700 mb-1">Total Amount</label>
-                     <div className="relative">
-                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                         <span className="text-slate-500 sm:text-sm">$</span>
-                       </div>
+
+                   {/* Editable Details Grid */}
+                   <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                     {/* Vendor */}
+                     <div className="lg:col-span-1">
+                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                         <Building2 size={14} className="mr-1.5" /> Vendor
+                       </label>
+                       <p className="text-base font-bold text-slate-900 truncate" title={result.vendorName}>
+                         {result.vendorName || "Unknown"}
+                       </p>
+                     </div>
+
+                     {/* Invoice Date */}
+                     <div className="lg:col-span-1">
+                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                         <Calendar size={14} className="mr-1.5" /> Date
+                       </label>
                        <input 
-                         type="number" 
-                         step="0.01"
-                         value={result.totalAmount === 0 ? '' : result.totalAmount} 
-                         onChange={(e) => setResult({...result, totalAmount: e.target.value as any})}
-                         className="w-full rounded-md border-slate-300 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                         placeholder="0.00"
+                         type="text" 
+                         value={result.invoiceDate || ''} 
+                         onChange={(e) => setResult({...result, invoiceDate: e.target.value})}
+                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 transition-colors"
+                         placeholder="YYYY-MM-DD"
                        />
+                     </div>
+
+                     {/* Invoice Number */}
+                     <div className="lg:col-span-1">
+                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                         <Hash size={14} className="mr-1.5" /> Invoice #
+                       </label>
+                       <input 
+                         type="text" 
+                         value={result.invoiceNumber || ''} 
+                         onChange={(e) => setResult({...result, invoiceNumber: e.target.value})}
+                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 transition-colors"
+                         placeholder="Invoice #"
+                       />
+                     </div>
+
+                     {/* Total Amount */}
+                     <div className="lg:col-span-1">
+                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                         <DollarSign size={14} className="mr-1.5" /> Total Amount
+                       </label>
+                       <div className="relative">
+                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                           <span className="text-slate-500 sm:text-sm font-medium">$</span>
+                         </div>
+                         <input 
+                           type="number" 
+                           step="0.01"
+                           value={result.totalAmount === 0 ? '' : result.totalAmount} 
+                           onChange={(e) => setResult({...result, totalAmount: e.target.value as any})}
+                           className="w-full rounded-lg border-slate-300 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 transition-colors font-medium"
+                           placeholder="0.00"
+                         />
+                       </div>
+                     </div>
+
+                     {/* Items Count */}
+                     <div className="lg:col-span-1">
+                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                         <Tag size={14} className="mr-1.5" /> Items
+                       </label>
+                       <div className="flex items-center h-[38px]">
+                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-800">
+                           {result.items.length} line items
+                         </span>
+                       </div>
                      </div>
                    </div>
                  </div>
@@ -583,7 +862,11 @@ const App: React.FC = () => {
             )}
           </div>
         )}
+        </motion.div>
+        </AnimatePresence>
+        </div>
       </main>
+      </div>
 
       <AddProductModal 
         isOpen={isAddProductOpen}
@@ -594,7 +877,7 @@ const App: React.FC = () => {
       
       {/* Floating Action Bar for Completion */}
       {status === 'complete' && !isSaved && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg z-40">
+        <div className="fixed bottom-0 left-0 md:left-64 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
            <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
               <p className="text-sm text-slate-500 hidden sm:block">
                  Found {result?.items.length} items totaling ${(parseFloat(result?.totalAmount as any) || 0).toFixed(2)}

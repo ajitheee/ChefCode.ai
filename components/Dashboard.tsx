@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { AnalysisResult, InvoiceItem } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { DollarSign, FileText, Calendar, Tag, MapPin, AlertTriangle, CheckCircle } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface DashboardProps {
   data: AnalysisResult;
@@ -33,75 +34,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   }, [data.deliveryAddress]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      
-      {/* Address Verification Banner */}
-      <div className={`p-4 rounded-xl border flex items-start space-x-3 ${isValidAddress ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-         {isValidAddress ? (
-            <CheckCircle className="text-green-600 flex-shrink-0 mt-0.5" size={24} />
-         ) : (
-            <AlertTriangle className="text-red-600 flex-shrink-0 mt-0.5" size={24} />
-         )}
-         <div>
-            <h4 className={`font-semibold ${isValidAddress ? 'text-green-900' : 'text-red-900'}`}>
-                {isValidAddress ? 'Delivery Address Verified' : 'Warning: Delivery Address Mismatch'}
-            </h4>
-            <p className={`text-sm ${isValidAddress ? 'text-green-700' : 'text-red-700'}`}>
-                Detected: {data.deliveryAddress || "Not found"}
-            </p>
-            {!isValidAddress && (
-                <p className="text-xs text-red-600 mt-1 font-medium">
-                    Please verify this invoice is for the correct location (Centerpointe or 3801 W Temple).
-                </p>
-            )}
-         </div>
-      </div>
-
-      {/* Header Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-            <DollarSign size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Total Amount</p>
-            <p className="text-2xl font-bold text-slate-900">${totalSpend.toFixed(2)}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
-          <div className="p-3 bg-purple-50 text-purple-600 rounded-lg">
-            <FileText size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Vendor</p>
-            <p className="text-lg font-bold text-slate-900 truncate max-w-[150px]" title={data.vendorName}>
-              {data.vendorName || "Unknown"}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
-          <div className="p-3 bg-green-50 text-green-600 rounded-lg">
-            <Calendar size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Date</p>
-            <p className="text-lg font-bold text-slate-900">{data.invoiceDate || "N/A"}</p>
-          </div>
-        </div>
-        
-         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
-          <div className="p-3 bg-orange-50 text-orange-600 rounded-lg">
-            <Tag size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-slate-500 font-medium">Items</p>
-            <p className="text-2xl font-bold text-slate-900">{data.items.length}</p>
-          </div>
-        </div>
-      </div>
-
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.1 }}
+      className="space-y-6"
+    >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Category Breakdown Table */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-1">
@@ -192,7 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

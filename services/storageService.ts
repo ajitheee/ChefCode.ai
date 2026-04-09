@@ -119,7 +119,9 @@ export const saveInvoiceToHistory = (data: AnalysisResult) => {
       invoiceDate: data.invoiceDate,
       totalAmount: data.totalAmount,
       processedAt: new Date().toISOString(),
-      splits
+      splits,
+      items: data.items,
+      location: data.location || 'Centerpointe'
     };
   } else {
     // Create new invoice
@@ -130,7 +132,9 @@ export const saveInvoiceToHistory = (data: AnalysisResult) => {
       invoiceDate: data.invoiceDate,
       totalAmount: data.totalAmount,
       processedAt: new Date().toISOString(),
-      splits
+      splits,
+      items: data.items,
+      location: data.location || 'Centerpointe'
     };
     invoices.push(newInvoice);
   }
