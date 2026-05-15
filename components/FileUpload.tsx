@@ -47,8 +47,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isProcessing }) =
       whileTap={!isProcessing ? { scale: 0.99 } : {}}
       className={`
         relative w-full max-w-2xl mx-auto h-64 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-6 text-center transition-all duration-300
-        ${dragActive ? 'border-indigo-500 bg-indigo-50/50 shadow-inner' : 'border-slate-300 bg-white shadow-sm'}
-        ${isProcessing ? 'border-indigo-200 bg-indigo-50/30' : 'hover:border-indigo-400 hover:bg-slate-50 cursor-pointer hover:shadow-md'}
+        ${dragActive ? 'border-cyan-500 bg-cyan-50/50 shadow-inner' : 'border-slate-300 bg-white shadow-sm'}
+        ${isProcessing ? 'border-cyan-200 bg-cyan-50/30' : 'hover:border-cyan-400 hover:bg-slate-50 cursor-pointer hover:shadow-md'}
       `}
       onDragEnter={handleDrag}
       onDragLeave={handleDrag}
@@ -78,9 +78,9 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isProcessing }) =
               <motion.div 
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                className="absolute inset-0 rounded-full border-t-2 border-indigo-600 opacity-20"
+                className="absolute inset-0 rounded-full border-t-2 border-cyan-600 opacity-20"
               />
-              <Loader2 size={48} className="text-indigo-600 animate-spin relative z-10" />
+              <Loader2 size={48} className="text-cyan-600 animate-spin relative z-10" />
             </div>
             <p className="text-lg font-semibold text-slate-800">Analyzing Invoice...</p>
             <p className="text-sm text-slate-500 mt-2 max-w-xs">Identifying items, verifying address, and assigning GL codes</p>
@@ -93,7 +93,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isProcessing }) =
             exit={{ opacity: 0, y: -10 }}
             className="flex flex-col items-center"
           >
-            <div className="p-4 bg-indigo-100 text-indigo-600 rounded-full mb-4 shadow-sm">
+            <div className="p-4 bg-cyan-100 text-cyan-600 rounded-full mb-4 shadow-sm">
               <Upload size={32} />
             </div>
             <h3 className="text-xl font-semibold text-slate-900 mb-1">

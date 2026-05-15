@@ -30,6 +30,7 @@ export interface InvoiceItem {
   confidence: number; // 0-1 score from AI
   isDatabaseMatch?: boolean; // New flag for UI
   historicalPrice?: number; // For price spike alerts
+  historicalDate?: string; // For price spike alerts
   priceSpike?: boolean; // For price spike alerts
 }
 

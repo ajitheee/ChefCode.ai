@@ -45,7 +45,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   return (
     <div className="min-h-screen bg-white flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-slate-900 relative overflow-hidden flex-col justify-between p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-[#1a202c] relative overflow-hidden flex-col justify-between p-12">
         <div className="absolute inset-0 opacity-20">
           <img 
             src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=2070&auto=format&fit=crop" 
@@ -56,10 +56,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </div>
         <div className="relative z-10">
           <div className="flex items-center text-white mb-8">
-            <div className="bg-indigo-500/20 p-3 rounded-xl backdrop-blur-sm border border-indigo-500/30 mr-4">
-              <ChefHat size={32} className="text-indigo-400" />
+            <div className="bg-white p-3 rounded-2xl border-2 border-white/20 mr-6 flex flex-shrink-0 items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.15)] relative">
+              <img src="/logo.png" alt="Logo" className="h-[72px] w-auto object-contain" onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+                document.getElementById('fallback-icon-main')!.style.display = 'block';
+              }} />
+              <ChefHat id="fallback-icon-main" size={56} className="text-slate-800" style={{ display: 'none' }} />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">ChefCode<span className="text-indigo-400">.ai</span></h1>
+            <h1 className="text-6xl font-bold tracking-tight shadow-sm drop-shadow-md">ChefCode<span className="text-cyan-400">.ai</span></h1>
           </div>
           <h2 className="text-4xl font-semibold text-white leading-tight mt-12 max-w-lg">
             The intelligent culinary ledger for modern kitchens.
@@ -80,10 +84,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {step === 'credentials' && (
             <div className="animate-fade-in">
               <div className="lg:hidden flex items-center justify-center mb-8">
-                <div className="bg-indigo-100 p-3 rounded-xl text-indigo-600 mr-3">
-                  <ChefHat size={32} />
+                <div className="bg-white p-2.5 rounded-xl border border-slate-200 mr-4 flex flex-shrink-0 items-center justify-center shadow-md relative">
+                  <img src="/logo.png" alt="Logo" className="h-[48px] w-auto object-contain" onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    document.getElementById('fallback-icon-mobile')!.style.display = 'block';
+                  }} />
+                  <ChefHat id="fallback-icon-mobile" size={40} className="text-slate-800" style={{ display: 'none' }} />
                 </div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">ChefCode<span className="text-indigo-600">.ai</span></h1>
+                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">ChefCode<span className="text-cyan-600">.ai</span></h1>
               </div>
               
               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
@@ -112,7 +120,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         setUsername(e.target.value);
                         setError('');
                       }}
-                      className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
+                      className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
                       placeholder="Enter your username"
                     />
                   </div>
@@ -136,7 +144,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         setPassword(e.target.value);
                         setError('');
                       }}
-                      className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
+                      className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
                       placeholder="••••••••"
                     />
                   </div>
@@ -150,7 +158,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
                 <button
                   type="submit"
-                  className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                  className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
                 >
                   Sign in
                 </button>
@@ -180,7 +188,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     </div>
                   </div>
                   {mfaStatus === 'waiting' ? (
-                    <Loader2 className="h-5 w-5 text-indigo-500 animate-spin" />
+                    <Loader2 className="h-5 w-5 text-cyan-500 animate-spin" />
                   ) : (
                     <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                   )}
@@ -205,7 +213,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               <button 
                 onClick={() => setStep('credentials')}
-                className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+                className="text-sm text-cyan-600 hover:text-cyan-500 font-medium"
               >
                 Cancel and return to login
               </button>

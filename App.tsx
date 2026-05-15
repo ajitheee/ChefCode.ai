@@ -103,6 +103,7 @@ const App: React.FC = () => {
       const history = getSavedInvoices();
       const enrichedItems = data.items.map(item => {
         let lastPrice: number | null = null;
+        let lastDate: string | null = null;
         // Search history (assuming newest is last, so we search backwards)
         for (let i = history.length - 1; i >= 0; i--) {
           const inv = history[i];
@@ -113,13 +114,19 @@ const App: React.FC = () => {
             );
             if (matched && matched.unitPrice) {
               lastPrice = matched.unitPrice;
+              lastDate = inv.invoiceDate;
               break;
             }
           }
         }
         
         const isSpike = lastPrice !== null && item.unitPrice > lastPrice * 1.10; // 10% spike
-        return { ...item, historicalPrice: lastPrice || undefined, priceSpike: isSpike };
+        return { 
+          ...item, 
+          historicalPrice: lastPrice || undefined, 
+          historicalDate: lastDate || undefined,
+          priceSpike: isSpike 
+        };
       });
       data.items = enrichedItems;
 
@@ -415,13 +422,24 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col hidden md:flex flex-shrink-0">
-        <div className="h-16 flex items-center px-6 bg-slate-950 border-b border-slate-800">
-          <div className="flex items-center text-indigo-400 bg-indigo-500/10 p-2 rounded-lg">
-            <ChefHat size={24} />
-          </div>
-          <div className="ml-3">
-            <h1 className="text-lg font-bold tracking-tight text-white">ChefCode<span className="text-indigo-400">.ai</span></h1>
+      <aside className="w-64 bg-[#1a202c] text-white flex flex-col hidden md:flex flex-shrink-0">
+        <div className="h-16 flex items-center px-6 bg-[#141923] border-b border-slate-700/50">
+          <div className="flex items-center w-full py-2">
+            <div className="bg-white p-1.5 rounded-xl border border-slate-200 mr-3 flex flex-shrink-0 items-center justify-center shadow-sm relative">
+              <img 
+                src="/logo.png" 
+                alt="Logo" 
+                className="h-[36px] w-auto object-contain" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  document.getElementById('fallback-icon-sidebar')!.style.display = 'block';
+                }} 
+              />
+              <ChefHat id="fallback-icon-sidebar" size={28} className="text-slate-800" style={{ display: 'none' }} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">ChefCode<span className="text-cyan-400">.ai</span></h1>
+            </div>
           </div>
         </div>
         
@@ -433,12 +451,12 @@ const App: React.FC = () => {
             onClick={() => setActiveTab('processor')}
             className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
               activeTab === 'processor' 
-                ? 'bg-indigo-500/10 text-indigo-400' 
+                ? 'bg-cyan-500/10 text-cyan-400' 
                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
           >
             {activeTab === 'processor' && (
-              <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-full" />
+              <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
             )}
             <LayoutDashboard size={18} className="mr-3" />
             Invoice Processor
@@ -451,12 +469,12 @@ const App: React.FC = () => {
                 onClick={() => setActiveTab('trackers')}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
                   activeTab === 'trackers' 
-                    ? 'bg-indigo-500/10 text-indigo-400' 
+                    ? 'bg-cyan-500/10 text-cyan-400' 
                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                 }`}
               >
                 {activeTab === 'trackers' && (
-                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-full" />
+                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
                 )}
                 <TableProperties size={18} className="mr-3" />
                 Tracker Sheets
@@ -467,12 +485,12 @@ const App: React.FC = () => {
                 onClick={() => setActiveTab('admin')}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
                   activeTab === 'admin' 
-                    ? 'bg-indigo-500/10 text-indigo-400' 
+                    ? 'bg-cyan-500/10 text-cyan-400' 
                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                 }`}
               >
                 {activeTab === 'admin' && (
-                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-full" />
+                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
                 )}
                 <Database size={18} className="mr-3" />
                 Admin Panel
@@ -525,21 +543,21 @@ const App: React.FC = () => {
                <>
                  <button 
                   onClick={handleReset}
-                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
                  >
                    <RotateCcw size={16} className="mr-2" />
                    New Scan
                  </button>
                  <button 
                   onClick={() => result && exportInvoiceToCSV(result as SavedInvoice)}
-                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
                  >
                    <Download size={16} className="mr-2" />
                    CSV
                  </button>
                  <button 
                   onClick={handleDownloadUpdatedInvoice}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
                  >
                    <Download size={16} className="mr-2" />
                    PDF
@@ -579,14 +597,14 @@ const App: React.FC = () => {
                   <div className="flex gap-4">
                     <button 
                       onClick={handleDownloadUpdatedInvoice}
-                      className="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all hover:shadow-md"
+                      className="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-all hover:shadow-md"
                     >
                       <Download size={20} className="mr-2" />
                       Download Updated Invoice
                     </button>
                     <button 
                       onClick={handleReset}
-                      className="inline-flex items-center px-6 py-3 border border-slate-300 shadow-sm text-base font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all hover:shadow-md"
+                      className="inline-flex items-center px-6 py-3 border border-slate-300 shadow-sm text-base font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-all hover:shadow-md"
                     >
                       <RotateCcw size={20} className="mr-2" />
                       New Scan
@@ -618,7 +636,7 @@ const App: React.FC = () => {
             
             <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-3">
               <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mx-auto">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
                    <span className="text-xl font-bold">1</span>
                 </div>
                 <h3 className="mt-4 text-lg font-medium text-slate-900">Upload Invoice</h3>
@@ -627,7 +645,7 @@ const App: React.FC = () => {
                 </p>
               </div>
               <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mx-auto">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
                    <span className="text-xl font-bold">2</span>
                 </div>
                 <h3 className="mt-4 text-lg font-medium text-slate-900">AI Analysis</h3>
@@ -636,7 +654,7 @@ const App: React.FC = () => {
                 </p>
               </div>
               <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mx-auto">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
                    <span className="text-xl font-bold">3</span>
                 </div>
                 <h3 className="mt-4 text-lg font-medium text-slate-900">Review & Export</h3>
@@ -649,12 +667,12 @@ const App: React.FC = () => {
             <div className="mt-16 border-t border-slate-200 pt-12">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-slate-900 flex items-center">
-                  <Calendar className="mr-2 text-indigo-500" size={24} />
+                  <Calendar className="mr-2 text-cyan-500" size={24} />
                   Recent Activity
                 </h3>
                 <button 
                   onClick={() => setActiveTab('trackers')}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center"
+                  className="text-sm font-medium text-cyan-600 hover:text-cyan-700 flex items-center"
                 >
                   View All <ExternalLink size={14} className="ml-1" />
                 </button>
@@ -671,7 +689,7 @@ const App: React.FC = () => {
                       className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group cursor-pointer"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                        <div className="h-10 w-10 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-600 group-hover:bg-cyan-100 transition-colors">
                           <FileText size={20} />
                         </div>
                         <div>
@@ -723,7 +741,7 @@ const App: React.FC = () => {
                  {/* Explicit Review Header */}
                  <div className="flex items-center justify-between mb-6">
                    <div className="flex items-center space-x-3">
-                     <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                     <div className="p-2 bg-cyan-100 text-cyan-600 rounded-lg">
                        <FileText size={24} />
                      </div>
                      <div>
@@ -734,7 +752,7 @@ const App: React.FC = () => {
                    {previewImage && (
                      <button
                        onClick={handleOpenPreview}
-                       className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                       className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
                      >
                        <ExternalLink size={16} className="mr-2" />
                        View Original Invoice
@@ -787,7 +805,7 @@ const App: React.FC = () => {
                          type="text" 
                          value={result.invoiceDate || ''} 
                          onChange={(e) => setResult({...result, invoiceDate: e.target.value})}
-                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 transition-colors"
+                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 px-3 transition-colors"
                          placeholder="YYYY-MM-DD"
                        />
                      </div>
@@ -801,7 +819,7 @@ const App: React.FC = () => {
                          type="text" 
                          value={result.invoiceNumber || ''} 
                          onChange={(e) => setResult({...result, invoiceNumber: e.target.value})}
-                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 transition-colors"
+                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 px-3 transition-colors"
                          placeholder="Invoice #"
                        />
                      </div>
@@ -820,7 +838,7 @@ const App: React.FC = () => {
                            step="0.01"
                            value={result.totalAmount === 0 ? '' : result.totalAmount} 
                            onChange={(e) => setResult({...result, totalAmount: e.target.value as any})}
-                           className="w-full rounded-lg border-slate-300 pl-7 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 transition-colors font-medium"
+                           className="w-full rounded-lg border-slate-300 pl-7 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 transition-colors font-medium"
                            placeholder="0.00"
                          />
                        </div>
@@ -847,7 +865,7 @@ const App: React.FC = () => {
                     <div>
                         <h2 className="text-xl font-bold text-slate-900">Line Items Review</h2>
                         <p className="text-sm text-slate-500 mt-1">
-                            Verify codes below. Click <span className="text-indigo-600 font-medium">Add to DB</span> to save new products for future scans.
+                            Verify codes below. Click <span className="text-cyan-600 font-medium">Add to DB</span> to save new products for future scans.
                         </p>
                     </div>
                   </div>

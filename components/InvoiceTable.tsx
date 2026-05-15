@@ -72,7 +72,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                           ) : (
                             <button 
                                 onClick={() => onAddToDb(item)}
-                                className="flex items-center text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                                className="flex items-center text-xs text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-100 hover:bg-cyan-100 transition-colors"
                             >
                                 <Plus size={10} className="mr-1" /> Add to DB
                             </button>
@@ -108,9 +108,16 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                       />
                      </div>
                      {item.priceSpike && item.historicalPrice && (
-                       <div className="flex items-center text-xs text-red-600 mt-1" title={`Price increased from $${item.historicalPrice.toFixed(2)}`}>
-                         <TrendingUp size={12} className="mr-1" />
-                         Spike (was ${item.historicalPrice.toFixed(2)})
+                       <div className="flex flex-col text-xs text-red-600 mt-1" title={`Price increased from $${item.historicalPrice.toFixed(2)}${item.historicalDate ? ` on ${item.historicalDate}` : ''}`}>
+                         <div className="flex items-center font-medium">
+                           <TrendingUp size={12} className="mr-1" />
+                           Spike (was ${item.historicalPrice.toFixed(2)})
+                         </div>
+                         {item.historicalDate && (
+                           <span className="text-[10px] text-red-500/80 ml-4">
+                             Recorded: {item.historicalDate}
+                           </span>
+                         )}
                        </div>
                      )}
                    </div>
@@ -124,7 +131,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                     onChange={(e) => handleGlChange(item.id, e.target.value)}
                     className={`
                       w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-slate-900 ring-1 ring-inset ring-slate-300 
-                      focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6 cursor-pointer
+                      focus:ring-2 focus:ring-cyan-600 sm:text-sm sm:leading-6 cursor-pointer
                       ${item.isDatabaseMatch ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-white'}
                       ${!item.glCode ? 'bg-red-50 text-red-900 ring-red-300' : ''}
                     `}

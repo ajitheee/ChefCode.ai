@@ -54,7 +54,7 @@ export const AdminPanel: React.FC = () => {
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="bg-white shadow rounded-lg p-6">
         <div className="flex items-center mb-6">
-          <Database className="h-6 w-6 text-indigo-600 mr-2" />
+          <Database className="h-6 w-6 text-cyan-600 mr-2" />
           <h2 className="text-xl font-bold text-slate-900">Admin Settings</h2>
         </div>
 

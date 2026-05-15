@@ -524,7 +524,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
             <button
               onClick={() => setView('excel')}
               className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                view === 'excel' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                view === 'excel' ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <TableIcon size={16} className="mr-1.5" />
@@ -533,7 +533,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
             <button
               onClick={() => setView('list')}
               className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                view === 'list' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                view === 'list' ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <List size={16} className="mr-1.5" />
@@ -542,7 +542,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
             <button
               onClick={() => setView('analytics')}
               className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                view === 'analytics' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                view === 'analytics' ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <PieChartIcon size={16} className="mr-1.5" />
@@ -561,7 +561,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Vendor</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Invoice #</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-indigo-600 uppercase tracking-wider">Food</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-cyan-600 uppercase tracking-wider">Food</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-emerald-600 uppercase tracking-wider">Expendable</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-emerald-600 uppercase tracking-wider">Non-Expendable</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-emerald-600 uppercase tracking-wider">Other Non-Food</th>
@@ -595,7 +595,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                       {isEditing ? (
                         <>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
-                            <input type="number" step="0.01" className="w-24 text-right border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" value={editForm.food} onChange={(e) => handleChange('food', e.target.value)} />
+                            <input type="number" step="0.01" className="w-24 text-right border-slate-300 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm" value={editForm.food} onChange={(e) => handleChange('food', e.target.value)} />
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-right">
                             <input type="number" step="0.01" className="w-24 text-right border-slate-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" value={editForm.nonFoodExpendable} onChange={(e) => handleChange('nonFoodExpendable', e.target.value)} />
@@ -615,12 +615,12 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                         </>
                       ) : (
                         <>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-indigo-700 text-right font-medium font-mono">{splits.food !== 0 ? `$${splits.food.toFixed(2)}` : '-'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-cyan-700 text-right font-medium font-mono">{splits.food !== 0 ? `$${splits.food.toFixed(2)}` : '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-emerald-700 text-right font-medium font-mono">{splits.nonFoodExpendable !== 0 ? `$${splits.nonFoodExpendable.toFixed(2)}` : '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-emerald-700 text-right font-medium font-mono">{splits.nonFoodNonExpendable !== 0 ? `$${splits.nonFoodNonExpendable.toFixed(2)}` : '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-emerald-700 text-right font-medium font-mono">{splits.nonFoodOther !== 0 ? `$${splits.nonFoodOther.toFixed(2)}` : '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-center">
-                            <button onClick={() => handleEdit(inv)} className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-md transition-colors">
+                            <button onClick={() => handleEdit(inv)} className="text-cyan-600 hover:text-cyan-900 bg-cyan-50 hover:bg-cyan-100 p-1.5 rounded-md transition-colors">
                               <Edit2 size={16} />
                             </button>
                           </td>
@@ -639,9 +639,9 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
         <div className="space-y-12">
           {/* FOOD TRACKER EXCEL VIEW */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col" style={{ maxHeight: '80vh' }}>
-            <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center shrink-0">
+            <div className="bg-cyan-600 px-6 py-4 flex justify-between items-center shrink-0">
               <h3 className="text-lg font-bold text-white tracking-wide">FOOD TRACKER</h3>
-              <div className="text-indigo-100 text-sm font-medium bg-indigo-700/50 px-3 py-1 rounded-full">
+              <div className="text-cyan-100 text-sm font-medium bg-cyan-700/50 px-3 py-1 rounded-full">
                 Click any cell to edit
               </div>
             </div>
@@ -655,7 +655,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                         {col}
                       </th>
                     ))}
-                    <th className="sticky top-0 right-0 z-30 bg-indigo-50 border-b border-l border-slate-200 px-4 py-3 text-center text-xs font-bold text-indigo-900 shadow-[-1px_1px_0_0_#e2e8f0]">Daily Total</th>
+                    <th className="sticky top-0 right-0 z-30 bg-cyan-50 border-b border-l border-slate-200 px-4 py-3 text-center text-xs font-bold text-cyan-900 shadow-[-1px_1px_0_0_#e2e8f0]">Daily Total</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white">
@@ -670,14 +670,14 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                             <td 
                               key={`${day}-${col}`} 
                               onClick={() => openCellEditor(day, col, 'food', val)}
-                              className="relative border-b border-r border-slate-100 px-3 py-2 text-right text-sm font-mono text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow-inner cursor-pointer transition-all duration-150 group-hover:border-slate-200"
+                              className="relative border-b border-r border-slate-100 px-3 py-2 text-right text-sm font-mono text-slate-700 hover:bg-cyan-50 hover:text-cyan-700 hover:shadow-inner cursor-pointer transition-all duration-150 group-hover:border-slate-200"
                             >
                               {val !== 0 ? val.toFixed(2) : <span className="text-slate-300">-</span>}
                             </td>
                           );
                         })}
-                        <td className="sticky right-0 z-10 bg-indigo-50/50 border-b border-l border-slate-200 px-4 py-2 text-right text-sm font-bold font-mono text-indigo-900 group-hover:bg-indigo-50 shadow-[-1px_0_0_0_#e2e8f0] transition-colors">
-                          {rowTotal !== 0 ? rowTotal.toFixed(2) : <span className="text-indigo-300">-</span>}
+                        <td className="sticky right-0 z-10 bg-cyan-50/50 border-b border-l border-slate-200 px-4 py-2 text-right text-sm font-bold font-mono text-cyan-900 group-hover:bg-cyan-50 shadow-[-1px_0_0_0_#e2e8f0] transition-colors">
+                          {rowTotal !== 0 ? rowTotal.toFixed(2) : <span className="text-cyan-300">-</span>}
                         </td>
                       </tr>
                     );
@@ -694,7 +694,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                         </td>
                       );
                     })}
-                    <td className="sticky right-0 z-30 bg-indigo-100 border-t border-l border-slate-300 px-4 py-3 text-right text-base font-black font-mono text-indigo-700 shadow-[-1px_-1px_0_0_#cbd5e1]">
+                    <td className="sticky right-0 z-30 bg-cyan-100 border-t border-l border-slate-300 px-4 py-3 text-right text-base font-black font-mono text-cyan-700 shadow-[-1px_-1px_0_0_#cbd5e1]">
                       ${Array.from({ length: 31 }, (_, i) => i + 1).reduce((sum, day) => sum + FOOD_COLS.reduce((s, c) => s + foodData[day][c], 0), 0).toFixed(2)}
                     </td>
                   </tr>
@@ -793,7 +793,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                 <p className="text-sm font-medium text-slate-500 mb-1">Total Spend</p>
                 <h4 className="text-3xl font-bold text-slate-900">${dashboardData.totalSpend.toFixed(2)}</h4>
               </div>
-              <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+              <div className="w-12 h-12 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-600">
                 <DollarSign size={24} />
               </div>
             </div>
@@ -893,7 +893,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-slate-900">Food Cost Analysis</h3>
-                <span className="text-sm font-medium text-indigo-600 cursor-pointer hover:text-indigo-800">View All</span>
+                <span className="text-sm font-medium text-cyan-600 cursor-pointer hover:text-cyan-800">View All</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -928,7 +928,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-slate-900">Non-Food Expenses</h3>
-                <span className="text-sm font-medium text-indigo-600 cursor-pointer hover:text-indigo-800">View All</span>
+                <span className="text-sm font-medium text-cyan-600 cursor-pointer hover:text-cyan-800">View All</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -971,7 +971,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="text-lg font-bold text-slate-900 flex items-center">
-                <Plus size={18} className="mr-2 text-indigo-600" />
+                <Plus size={18} className="mr-2 text-cyan-600" />
                 Add Custom Vendor
               </h3>
               <button onClick={() => setShowAddVendor(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-md hover:bg-slate-200">
@@ -985,7 +985,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                   type="text" 
                   autoFocus
                   placeholder="e.g., Local Farmers Market"
-                  className="block w-full px-4 py-2 border-slate-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="block w-full px-4 py-2 border-slate-300 rounded-xl shadow-sm focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm"
                   value={newVendorForm.name}
                   onChange={(e) => setNewVendorForm({...newVendorForm, name: e.target.value})}
                 />
@@ -997,7 +997,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                     onClick={() => setNewVendorForm({...newVendorForm, type: 'food'})}
                     className={`py-2 px-4 rounded-lg text-sm font-medium border transition-all ${
                       newVendorForm.type === 'food' 
-                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm' 
+                        ? 'bg-cyan-50 border-cyan-200 text-cyan-700 shadow-sm' 
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -1026,7 +1026,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
               <button 
                 onClick={handleAddVendor}
                 disabled={!newVendorForm.name.trim()}
-                className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm"
+                className="px-6 py-2 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm"
               >
                 Add Vendor
               </button>
@@ -1041,7 +1041,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="text-lg font-bold text-slate-900 flex items-center">
-                <Edit2 size={18} className="mr-2 text-indigo-600" />
+                <Edit2 size={18} className="mr-2 text-cyan-600" />
                 Edit Cell Value
               </h3>
               <button onClick={() => setEditingCell(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-md hover:bg-slate-200">
@@ -1069,7 +1069,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                   type="number" 
                   step="0.01"
                   autoFocus
-                  className="block w-full pl-8 pr-4 py-3 border-slate-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg font-mono transition-shadow"
+                  className="block w-full pl-8 pr-4 py-3 border-slate-300 rounded-xl shadow-sm focus:ring-cyan-500 focus:border-cyan-500 text-lg font-mono transition-shadow"
                   value={editingCell.newValue}
                   onChange={(e) => setEditingCell({...editingCell, newValue: e.target.value})}
                   onKeyDown={(e) => e.key === 'Enter' && handleCellSave()}
@@ -1089,7 +1089,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
               </button>
               <button 
                 onClick={handleCellSave} 
-                className="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center"
+                className="px-6 py-2.5 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center"
               >
                 <Save size={16} className="mr-2" />
                 Save Changes

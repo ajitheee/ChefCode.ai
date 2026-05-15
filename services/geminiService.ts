@@ -69,15 +69,16 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string =
       1. Extract vendor, invoice number, invoice date, total amount.
       2. Extract the **Delivery Address** (Ship To) exactly as it appears.
       3. Extract all line items (description, product number if visible, qty, price).
-      4. For each item:
+      4. CRITICAL: For each item's 'totalPrice', you MUST include the base item cost (quantity * unitPrice) PLUS any taxes, CRV, bottle deposits, or fees directly associated with that line item. Do NOT leave taxes as a separate unmapped item. Fold the tax into the product's totalPrice so it reflects the true true landed cost.
+      5. For each item:
          - **STEP 1 (EXACT MATCH)**: Does the Product Number or Description match an entry in the Master Product Database? 
            - IF YES: You MUST use the exact 'Code' and 'Cat' (Category) from the database. Set 'isDatabaseMatch' to true.
            - IF NO: Proceed to Step 2.
          - **STEP 2 (INFER)**: Use the General GL Code Rules to assign the code. Set 'isDatabaseMatch' to false.
-      5. For inferred items:
+      6. For inferred items:
          - If 'Ice Cream', 'Frozen', or 'Coffee', use 6318.
          - If ambiguous, use best culinary judgment.
-      6. Return pure JSON.
+      7. Return pure JSON.
     `;
 
     const response = await aiClient.models.generateContent({
