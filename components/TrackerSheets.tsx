@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getSavedInvoices, updateInvoiceSplits, getCustomVendors, addCustomVendor } from '../services/storageService';
 import { SavedInvoice, TrackerSplits, CustomVendor } from '../types';
 import { exportAllToCSV } from '../utils/csvExport';
-import { Edit2, Save, X, Table as TableIcon, List, Plus, Calculator, PieChart as PieChartIcon, Calendar, TrendingUp, DollarSign, ShoppingCart, Package, Download } from 'lucide-react';
+import { Edit2, Eye, Save, X, Table as TableIcon, List, Plus, Calculator, PieChart as PieChartIcon, Calendar, TrendingUp, DollarSign, ShoppingCart, Package, Download, CheckCircle2, MapPin } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 const INITIAL_FOOD_COLS = [
@@ -91,10 +91,15 @@ const getNonFoodSplitType = (col: string): keyof TrackerSplits => {
 const getMonthYear = (dateStr: string) => {
   if (!dateStr) return '';
   
-  // Try standard parsing first
-  let date = new Date(dateStr.replace(/-/g, '\/'));
-  if (!isNaN(date.getTime())) {
-      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  // Try YYYY-MM-DD directly first
+  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return dateStr.substring(0, 7);
+  }
+
+  // Try standard parsing
+  const d = new Date(dateStr.replace(/-/g, '/'));
+  if (!isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
   }
 
   const parts = dateStr.split(/[-/.]/);
@@ -104,18 +109,13 @@ const getMonthYear = (dateStr: string) => {
     const p3 = parseInt(parts[2], 10);
     
     if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
-      if (p1 > 1000) {
-        return `${p1}-${p2.toString().padStart(2, '0')}`; // YYYY-MM
-      } else if (p1 > 12) {
-        return `${p3}-${p2.toString().padStart(2, '0')}`; // DD-MM-YYYY -> YYYY-MM
-      } else if (p2 > 12) {
-        return `${p3}-${p1.toString().padStart(2, '0')}`; // MM-DD-YYYY -> YYYY-MM
-      } else {
-        return `${p3}-${p1.toString().padStart(2, '0')}`; // MM/DD/YYYY -> YYYY-MM
+      if (p1 > 1000) return `${p1}-${p2.toString().padStart(2, '0')}`;
+      if (p3 > 1000) {
+        if (p1 > 12) return `${p3}-${p2.toString().padStart(2, '0')}`;
+        return `${p3}-${p1.toString().padStart(2, '0')}`;
       }
     }
   }
-  
   return '';
 };
 
@@ -189,6 +189,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
   
   // List view editing state
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<SavedInvoice | null>(null);
   const [editForm, setEditForm] = useState<Record<keyof TrackerSplits, string | number>>({
     food: 0, nonFoodExpendable: 0, nonFoodNonExpendable: 0, nonFoodOther: 0
   });
@@ -256,24 +257,25 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
     const sortedMonths = Array.from(months).sort().reverse();
     setAvailableMonths(sortedMonths);
     
+    // Auto-select the most recent month if not already selected
     if (!selectedMonth) {
       let defaultMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
       
-      // Try to find the most recently processed invoice
       if (migratedInvoices.length > 0) {
-        const sortedByProcessed = [...migratedInvoices].sort((a, b) => {
-          return new Date(b.processedAt).getTime() - new Date(a.processedAt).getTime();
+        // Sort by invoice date to find the most recent month
+        const sortedByDate = [...migratedInvoices].sort((a, b) => {
+          return new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime();
         });
         
-        const latestProcessedMonth = getMonthYear(sortedByProcessed[0].invoiceDate);
-        if (latestProcessedMonth) {
-          defaultMonthStr = latestProcessedMonth;
+        const latestMonth = getMonthYear(sortedByDate[0].invoiceDate);
+        if (latestMonth) {
+          defaultMonthStr = latestMonth;
         }
       }
       
       setSelectedMonth(defaultMonthStr);
     }
-  }, []);
+  }, [selectedMonth]);
 
   const handleAddVendor = () => {
     if (!newVendorForm.name.trim()) return;
@@ -620,9 +622,22 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-emerald-700 text-right font-medium font-mono">{splits.nonFoodNonExpendable !== 0 ? `$${splits.nonFoodNonExpendable.toFixed(2)}` : '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-emerald-700 text-right font-medium font-mono">{splits.nonFoodOther !== 0 ? `$${splits.nonFoodOther.toFixed(2)}` : '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-center">
-                            <button onClick={() => handleEdit(inv)} className="text-cyan-600 hover:text-cyan-900 bg-cyan-50 hover:bg-cyan-100 p-1.5 rounded-md transition-colors">
-                              <Edit2 size={16} />
-                            </button>
+                            <div className="flex items-center justify-center space-x-2">
+                              <button 
+                                onClick={() => setViewingInvoice(inv)} 
+                                title="View Details"
+                                className="text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 p-1.5 rounded-md transition-colors"
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleEdit(inv)} 
+                                title="Edit Splits"
+                                className="text-cyan-600 hover:text-cyan-900 bg-cyan-50 hover:bg-cyan-100 p-1.5 rounded-md transition-colors"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            </div>
                           </td>
                         </>
                       )}
@@ -1029,6 +1044,153 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                 className="px-6 py-2 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm"
               >
                 Add Vendor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW INVOICE MODAL */}
+      {viewingInvoice && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in shadow-2xl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden transform transition-all flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+              <div className="flex items-center">
+                <CheckCircle2 size={22} className="text-green-600 mr-2" />
+                <h3 className="text-lg font-bold text-slate-900">
+                  Invoice Details: {viewingInvoice.invoiceNumber}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setViewingInvoice(null)} 
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-full hover:bg-slate-200"
+              >
+                <X size={20}/>
+              </button>
+            </div>
+            
+            <div className="p-0 overflow-y-auto flex-1">
+              {/* Header Info */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-6 bg-slate-50/50 border-b border-slate-100">
+                <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vendor</p>
+                  <p className="text-sm font-bold text-slate-900">{viewingInvoice.vendorName}</p>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Invoice Date</p>
+                  <p className="text-sm font-bold text-slate-900">{viewingInvoice.invoiceDate}</p>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Location</p>
+                  <p className="text-sm font-bold text-slate-900 flex items-center">
+                    <MapPin size={12} className="mr-1 text-cyan-600" />
+                    {viewingInvoice.location || 'Centerpointe'}
+                  </p>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm border-l-4 border-l-cyan-500">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Amount</p>
+                  <p className="text-lg font-black text-slate-900 font-mono">${viewingInvoice.totalAmount.toFixed(2)}</p>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div className="p-6">
+                <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
+                  <ShoppingCart size={16} className="mr-2 text-cyan-600" />
+                  Coded Line Items
+                </h4>
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <table className="min-w-full divide-y divide-slate-100">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Item / Description</th>
+                        <th className="px-4 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">Qty</th>
+                        <th className="px-4 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">Unit Price</th>
+                        <th className="px-4 py-2 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total</th>
+                        <th className="px-4 py-2 text-center text-[10px] font-bold text-cyan-600 uppercase tracking-wider">GL Code</th>
+                        <th className="px-4 py-2 text-center text-[10px] font-bold text-cyan-600 uppercase tracking-wider">Category</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {viewingInvoice.items?.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-2.5">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-slate-900">{item.description}</span>
+                              {item.productNumber && (
+                                <span className="text-[10px] text-slate-400 font-mono">{item.productNumber}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 text-center text-xs font-medium text-slate-700">{item.quantity}</td>
+                          <td className="px-4 py-2.5 text-center text-xs font-mono text-slate-600">${item.unitPrice.toFixed(2)}</td>
+                          <td className="px-4 py-2.5 text-center text-xs font-bold text-slate-900 font-mono">${item.totalPrice.toFixed(2)}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800 font-mono">
+                              {item.glCode}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-center text-[10px] font-medium text-slate-600 uppercase tracking-tighter">
+                            {item.categoryName}
+                          </td>
+                        </tr>
+                      ))}
+                      {!viewingInvoice.items || viewingInvoice.items.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-xs text-slate-400 italic">No line item details available for this invoice.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Tracker Mapping */}
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold text-slate-700 flex items-center">
+                      <PieChartIcon size={16} className="mr-2 text-emerald-600" />
+                      Tracker Sheet Allocation
+                    </h4>
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-3">
+                      <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                        <span className="text-xs font-medium text-slate-500">Food Cost</span>
+                        <span className="text-sm font-bold text-cyan-600 font-mono">${viewingInvoice.splits?.food.toFixed(2) || '0.00'}</span>
+                      </div>
+                      <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                        <span className="text-xs font-medium text-slate-500">Expendable Supplies</span>
+                        <span className="text-sm font-bold text-emerald-600 font-mono">${viewingInvoice.splits?.nonFoodExpendable.toFixed(2) || '0.00'}</span>
+                      </div>
+                      <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                        <span className="text-xs font-medium text-slate-500">Non-Expendable</span>
+                        <span className="text-sm font-bold text-emerald-600 font-mono">${viewingInvoice.splits?.nonFoodNonExpendable.toFixed(2) || '0.00'}</span>
+                      </div>
+                      <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                        <span className="text-xs font-medium text-slate-500">Misc Non-Food</span>
+                        <span className="text-sm font-bold text-emerald-600 font-mono">${viewingInvoice.splits?.nonFoodOther.toFixed(2) || '0.00'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col justify-end">
+                    <div className="bg-cyan-900 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden group">
+                      <TrendingUp className="absolute -right-4 -bottom-4 text-cyan-800 transform rotate-12 group-hover:scale-110 transition-transform duration-500" size={120} />
+                      <div className="relative z-10">
+                        <p className="text-cyan-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Finalized Total</p>
+                        <h5 className="text-4xl font-black font-mono tracking-tighter mb-1">${viewingInvoice.totalAmount.toFixed(2)}</h5>
+                        <p className="text-cyan-300/60 text-xs font-medium">Processed on {new Date(viewingInvoice.processedAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-100 border-t border-slate-200 flex justify-end shrink-0">
+              <button 
+                onClick={() => setViewingInvoice(null)} 
+                className="px-6 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-slate-800 transition-all active:scale-95"
+              >
+                Close Review
               </button>
             </div>
           </div>

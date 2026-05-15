@@ -78,7 +78,8 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string =
       6. For inferred items:
          - If 'Ice Cream', 'Frozen', or 'Coffee', use 6318.
          - If ambiguous, use best culinary judgment.
-      7. Return pure JSON.
+      7. CRITICAL: Always return 'invoiceDate' in YYYY-MM-DD format. If only month/year is found, assume current year or best guess.
+      8. Return pure JSON.
     `;
 
     const response = await aiClient.models.generateContent({
