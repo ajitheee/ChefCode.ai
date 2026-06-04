@@ -711,105 +711,119 @@ const App: React.FC = () => {
                   </div>
                </div>
             ) : status === 'idle' || status === 'uploading' || status === 'analyzing' || status === 'error' ? (
-          <div className="max-w-3xl mx-auto mt-12">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+          <div className="max-w-4xl mx-auto mt-6">
+            {/* ── Hero Header ── */}
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 bg-cyan-50 border border-cyan-200/60 rounded-full px-4 py-1.5 mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                <span className="text-xs font-semibold text-cyan-700 uppercase tracking-wider">AI-Powered Processing</span>
+              </div>
+              <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl tracking-tight">
                 Code Invoices in Seconds
               </h2>
-              <p className="mt-4 text-lg text-slate-500">
-                Upload your supplier invoices (Sysco, US Foods, etc.) and let our AI automatically assign GL codes to every line item.
+              <p className="mt-3 text-base text-slate-500 max-w-lg mx-auto leading-relaxed">
+                Upload supplier invoices from Sysco, US Foods, and more. Our AI extracts every line item and assigns GL codes automatically.
               </p>
             </div>
-            
-            <FileUpload 
-              onFileSelect={handleFileSelect} 
-              isProcessing={status === 'analyzing' || status === 'uploading'} 
+
+            {/* ── File Upload Dropzone ── */}
+            <FileUpload
+              onFileSelect={handleFileSelect}
+              isProcessing={status === 'analyzing' || status === 'uploading'}
             />
 
+            {/* ── Error Alert ── */}
             {status === 'error' && (
-              <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-center justify-center">
-                 <p>{errorMsg}</p>
-                 <button onClick={handleReset} className="ml-4 underline font-medium">Try again</button>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3"
+              >
+                <AlertTriangle size={18} className="text-red-500 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-red-800">{errorMsg}</p>
+                </div>
+                <button onClick={handleReset} className="text-sm font-semibold text-red-600 hover:text-red-800 whitespace-nowrap">
+                  Try again
+                </button>
+              </motion.div>
             )}
-            
-            <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-3">
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
-                   <span className="text-xl font-bold">1</span>
-                </div>
-                <h3 className="mt-4 text-lg font-medium text-slate-900">Upload Invoice</h3>
-                <p className="mt-2 text-base text-slate-500">
-                  Drag & drop an image of your invoice.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
-                   <span className="text-xl font-bold">2</span>
-                </div>
-                <h3 className="mt-4 text-lg font-medium text-slate-900">AI Analysis</h3>
-                <p className="mt-2 text-base text-slate-500">
-                  We read line items and map them to your 63xx/7xxx codes.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
-                   <span className="text-xl font-bold">3</span>
-                </div>
-                <h3 className="mt-4 text-lg font-medium text-slate-900">Review & Export</h3>
-                <p className="mt-2 text-base text-slate-500">
-                  Verify the data and export to your accounting system.
-                </p>
-              </div>
-            </div>
-            
-            <div className="mt-16 border-t border-slate-200 pt-12">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center">
-                  <Calendar className="mr-2 text-cyan-500" size={24} />
-                  Recent Activity
-                </h3>
-                <button 
-                  onClick={() => setActiveTab('trackers')}
-                  className="text-sm font-medium text-cyan-600 hover:text-cyan-700 flex items-center"
+
+            {/* ── 3-Step Process Cards ── */}
+            <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {[
+                { num: '01', title: 'Upload Invoice', desc: 'Drag & drop a PDF or photo of your supplier invoice.', color: 'from-cyan-500 to-blue-500', bg: 'bg-cyan-50' },
+                { num: '02', title: 'AI Analysis', desc: 'Line items extracted, products matched, GL codes assigned.', color: 'from-violet-500 to-purple-500', bg: 'bg-violet-50' },
+                { num: '03', title: 'Review & Export', desc: 'Verify the data and export to CSV, PDF, or QuickBooks.', color: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50' },
+              ].map((step, i) => (
+                <motion.div
+                  key={step.num}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.1 }}
+                  className="relative bg-white rounded-2xl border border-slate-200/60 p-6 hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 group"
                 >
-                  View All <ExternalLink size={14} className="ml-1" />
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${step.color} text-white text-sm font-bold shadow-md mb-4`}>
+                    {step.num}
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mb-1.5">{step.title}</h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">{step.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* ── Recent Activity ── */}
+            <div className="mt-14 pt-10 border-t border-slate-200/60">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-cyan-50">
+                    <Calendar size={18} className="text-cyan-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+                </div>
+                <button
+                  onClick={() => setActiveTab('trackers')}
+                  className="text-sm font-medium text-cyan-600 hover:text-cyan-700 flex items-center gap-1 transition-colors"
+                >
+                  View All <ExternalLink size={13} />
                 </button>
               </div>
 
               {recentInvoices.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {recentInvoices.map((invoice, idx) => (
-                    <motion.div 
+                    <motion.div
                       key={invoice.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group cursor-pointer"
+                      transition={{ delay: idx * 0.08 }}
+                      className="bg-white p-4 rounded-xl border border-slate-200/60 hover:border-slate-300 hover:shadow-md transition-all duration-200 flex items-center justify-between group cursor-pointer"
                     >
-                      <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-600 group-hover:bg-cyan-100 transition-colors">
-                          <FileText size={20} />
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-50 to-blue-50 flex items-center justify-center text-cyan-600 group-hover:from-cyan-100 group-hover:to-blue-100 transition-colors shrink-0 border border-cyan-100">
+                          <FileText size={18} />
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{invoice.vendorName || 'Unknown Vendor'}</p>
-                          <p className="text-xs text-slate-500 flex items-center mt-0.5">
-                            <Hash size={12} className="mr-1" /> {invoice.invoiceNumber || 'N/A'}
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{invoice.vendorName || 'Unknown Vendor'}</p>
+                          <p className="text-xs text-slate-400 flex items-center mt-0.5 font-mono">
+                            #{invoice.invoiceNumber || 'N/A'}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0 ml-3">
                         <p className="text-sm font-bold text-slate-900">${parseFloat(invoice.totalAmount as any || 0).toFixed(2)}</p>
-                        <p className="text-xs text-slate-500">{new Date(invoice.processedAt).toLocaleDateString()}</p>
+                        <p className="text-[11px] text-slate-400">{new Date(invoice.processedAt).toLocaleDateString()}</p>
                       </div>
                     </motion.div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
-                  <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                  <h4 className="text-sm font-medium text-slate-900">No recent invoices</h4>
-                  <p className="text-sm text-slate-500 mt-1">Upload your first invoice to see it here.</p>
+                <div className="text-center py-14 bg-gradient-to-br from-slate-50 to-cyan-50/30 rounded-2xl border border-slate-200/60 border-dashed">
+                  <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-7 w-7 text-slate-300" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-700">No invoices yet</h4>
+                  <p className="text-sm text-slate-500 mt-1">Upload your first invoice above to get started.</p>
                 </div>
               )}
             </div>
