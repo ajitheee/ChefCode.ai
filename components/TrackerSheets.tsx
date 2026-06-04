@@ -683,15 +683,15 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                   <tr>
                     <th className="sticky top-0 left-0 z-30 bg-slate-100 border-b border-r border-slate-200 px-3 py-3 text-center text-xs font-bold text-slate-700 w-16 shadow-[1px_1px_0_0_#e2e8f0]">Day</th>
                     {FOOD_COLS.map(col => (
-                      <th key={col} className="sticky top-0 z-20 bg-slate-50 border-b border-r border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-600 min-w-[110px] shadow-[0_1px_0_0_#e2e8f0] group/th">
+                      <th key={col} className="sticky top-0 z-20 bg-slate-50 border-b border-r border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-600 min-w-[110px] shadow-[0_1px_0_0_#e2e8f0]">
                         <div className="flex items-center justify-center gap-1">
-                          <span className="truncate">{col}</span>
+                          <span className="truncate text-[11px]">{col}</span>
                           <button
                             onClick={(e) => { e.stopPropagation(); setHiddenFoodCols(prev => new Set([...prev, col])); }}
-                            title={`Hide ${col} column`}
-                            className="opacity-0 group-hover/th:opacity-100 p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
+                            title={`Hide ${col}`}
+                            className="p-0.5 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
                           >
-                            <X size={12} />
+                            <X size={11} />
                           </button>
                         </div>
                       </th>
