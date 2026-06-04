@@ -682,33 +682,62 @@ const App: React.FC = () => {
                 ) : activeTab === 'trackers' ? (
                   <TrackerSheets location={currentLocation} />
                 ) : isSaved ? (
-               <div className="flex flex-col items-center justify-center py-20">
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", bounce: 0.5 }}
-                    className="bg-green-100 p-4 rounded-full text-green-600 mb-4"
+               <div className="flex flex-col items-center justify-center py-16">
+                  {/* Success animation */}
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", bounce: 0.5, duration: 0.8 }}
+                    className="relative mb-6"
                   >
-                    <CheckCircle2 size={48} />
+                    <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-2xl scale-150" />
+                    <div className="relative bg-gradient-to-br from-emerald-400 to-emerald-600 p-5 rounded-2xl shadow-xl shadow-emerald-500/20">
+                      <CheckCircle2 size={40} className="text-white" />
+                    </div>
                   </motion.div>
-                  <h2 className="text-2xl font-bold text-slate-900">Invoice Saved!</h2>
-                  <p className="text-slate-500 mt-2 mb-8">Your invoice has been successfully processed and saved.</p>
-                  <div className="flex gap-4">
-                    <button 
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-center"
+                  >
+                    <h2 className="text-2xl font-extrabold text-slate-900">Invoice Saved!</h2>
+                    <p className="text-slate-500 mt-2 mb-2 text-sm max-w-sm">
+                      Successfully processed and saved to your database.
+                    </p>
+                    {result && (
+                      <div className="inline-flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2 mt-2 mb-8">
+                        <span className="text-xs font-semibold text-slate-500">{result.vendorName}</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        <span className="text-xs font-mono text-slate-500">#{result.invoiceNumber}</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        <span className="text-xs font-bold text-slate-700">${(parseFloat(result.totalAmount as any) || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex gap-3"
+                  >
+                    <button
                       onClick={handleDownloadUpdatedInvoice}
-                      className="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-all hover:shadow-md"
+                      className="inline-flex items-center gap-2 px-6 py-3 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 hover:-translate-y-0.5"
                     >
-                      <Download size={20} className="mr-2" />
-                      Download Updated Invoice
+                      <Download size={16} />
+                      Download PDF
                     </button>
-                    <button 
+                    <button
                       onClick={handleReset}
-                      className="inline-flex items-center px-6 py-3 border border-slate-300 shadow-sm text-base font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-all hover:shadow-md"
+                      className="inline-flex items-center gap-2 px-6 py-3 border border-slate-200 text-sm font-medium rounded-xl text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
                     >
-                      <RotateCcw size={20} className="mr-2" />
+                      <RotateCcw size={16} />
                       New Scan
                     </button>
-                  </div>
+                  </motion.div>
                </div>
             ) : status === 'idle' || status === 'uploading' || status === 'analyzing' || status === 'error' ? (
           <div className="max-w-4xl mx-auto mt-6">
@@ -974,17 +1003,25 @@ const App: React.FC = () => {
 
                 <Dashboard data={result} />
                 
-                <div className="mt-8">
+                <div className="mt-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-900">Line Items Review</h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Verify codes below. Click <span className="text-cyan-600 font-medium">Add to DB</span> to save new products for future scans.
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-violet-50 border border-violet-100">
+                        <TableProperties size={16} className="text-violet-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-bold text-slate-900 leading-tight">Line Items Review</h2>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Verify GL codes. Click <span className="text-cyan-600 font-semibold">Add to DB</span> to save products for future scans.
                         </p>
+                      </div>
                     </div>
+                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      {result.items.length} items
+                    </span>
                   </div>
-                  <InvoiceTable 
-                    items={result.items} 
+                  <InvoiceTable
+                    items={result.items}
                     onUpdateItem={handleUpdateItem}
                     onDeleteItem={handleDeleteItem}
                     onAddToDb={handleOpenAddProduct}
@@ -1007,30 +1044,47 @@ const App: React.FC = () => {
         onSave={handleSaveProduct}
       />
       
-      {/* Floating Action Bar for Completion */}
+      {/* ── Floating Action Bar ── */}
       {status === 'complete' && !isSaved && (
-        <div className="fixed bottom-0 left-0 md:left-64 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
-           <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
-              <p className="text-sm text-slate-500 hidden sm:block">
-                 Found {result?.items.length} items totaling ${(parseFloat(result?.totalAmount as any) || 0).toFixed(2)}
-              </p>
-              <div className="flex gap-4 ml-auto">
-                 <button 
-                  onClick={handleReset}
-                  className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50"
-                 >
-                   Cancel
-                 </button>
-                 <button 
-                  onClick={handleSaveAndFinish}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 flex items-center shadow-md transform hover:-translate-y-0.5 transition-all"
-                 >
-                   <CheckCircle2 size={20} className="mr-2" />
-                   Finalize & Save
-                 </button>
+        <motion.div
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          className="fixed bottom-0 left-0 md:left-72 right-0 z-40"
+        >
+          <div className="bg-white/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-8px_30px_-5px_rgba(0,0,0,0.08)]">
+            <div className="max-w-7xl mx-auto px-5 py-3.5 flex items-center justify-between">
+              {/* Left: Summary */}
+              <div className="hidden sm:flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5">
+                  <FileText size={14} className="text-slate-500" />
+                  <span className="text-sm font-semibold text-slate-700">{result?.items.length} items</span>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-50 rounded-lg px-3 py-1.5 border border-emerald-100">
+                  <DollarSign size={14} className="text-emerald-600" />
+                  <span className="text-sm font-bold text-emerald-700">${(parseFloat(result?.totalAmount as any) || 0).toFixed(2)}</span>
+                </div>
               </div>
-           </div>
-        </div>
+
+              {/* Right: Actions */}
+              <div className="flex gap-3 ml-auto">
+                <button
+                  onClick={handleReset}
+                  className="px-5 py-2 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAndFinish}
+                  className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-[13px] font-bold hover:from-emerald-600 hover:to-emerald-700 flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all"
+                >
+                  <CheckCircle2 size={16} />
+                  Finalize & Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       )}
     </div>
   );
