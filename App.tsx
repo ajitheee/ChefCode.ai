@@ -10,7 +10,7 @@ import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product, U
 import { analyzeInvoiceImage } from './services/geminiService';
 import { saveInvoiceToHistory, checkForDuplicate, getSavedInvoices } from './services/storageService';
 import { saveNewProduct } from './services/productService';
-import { signOut, getSession, getUserRole, onAuthStateChange } from './services/authService';
+import { signOut, getSession, getUserRole, getUserName, onAuthStateChange } from './services/authService';
 import { exportInvoiceToCSV } from './utils/csvExport';
 import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -35,12 +35,17 @@ const App: React.FC = () => {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [productToAdd, setProductToAdd] = useState<InvoiceItem | null>(null);
   const [recentInvoices, setRecentInvoices] = useState<SavedInvoice[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
     // Check for existing Supabase session on load
     getSession().then((session) => {
       if (session?.user) {
         setCurrentUser(getUserRole(session.user));
+        setUserName(getUserName(session.user));
+        setUserEmail(session.user.email || '');
       }
     });
 
@@ -48,8 +53,12 @@ const App: React.FC = () => {
     const subscription = onAuthStateChange((user) => {
       if (user) {
         setCurrentUser(getUserRole(user));
+        setUserName(getUserName(user));
+        setUserEmail(user.email || '');
       } else {
         setCurrentUser(null);
+        setUserName('');
+        setUserEmail('');
       }
     });
 
@@ -439,146 +448,217 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 bg-[#1a202c] text-white flex flex-col hidden md:flex flex-shrink-0">
-        <div className="h-16 flex items-center px-6 bg-[#141923] border-b border-slate-700/50">
-          <div className="flex items-center w-full py-2">
-            <div className="bg-white p-1.5 rounded-xl border border-slate-200 mr-3 flex flex-shrink-0 items-center justify-center shadow-sm relative">
-              <img 
-                src="/logo.png" 
-                alt="Logo" 
-                className="h-[36px] w-auto object-contain" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  document.getElementById('fallback-icon-sidebar')!.style.display = 'block';
-                }} 
-              />
-              <ChefHat id="fallback-icon-sidebar" size={28} className="text-slate-800" style={{ display: 'none' }} />
+    <div className="min-h-screen bg-slate-100/60 flex">
+
+      {/* ═══════════════════════════════════════════════════════════
+          SIDEBAR — Desktop (always visible) + Mobile (overlay drawer)
+          ═══════════════════════════════════════════════════════════ */}
+
+      {/* Mobile overlay backdrop */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-[#0f1629] to-[#1a202c] text-white flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0 md:z-auto
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* ── Logo Area ── */}
+        <div className="h-[72px] flex items-center justify-between px-5 border-b border-white/[0.06]">
+          <div className="flex items-center">
+            <div className="bg-gradient-to-br from-cyan-400 to-cyan-600 p-2 rounded-xl mr-3 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <ChefHat size={22} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">ChefCode<span className="text-cyan-400">.ai</span></h1>
+              <h1 className="text-xl font-bold tracking-tight text-white">ChefCode<span className="text-cyan-400">.ai</span></h1>
+              <p className="text-[10px] text-slate-500 font-medium -mt-0.5 tracking-wide">INVOICE INTELLIGENCE</p>
+            </div>
+          </div>
+          {/* Close button (mobile only) */}
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* ── Navigation ── */}
+        <div className="flex-1 py-6 px-3 overflow-y-auto">
+          <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3">Main Menu</p>
+
+          <nav className="space-y-1">
+            <motion.button
+              whileHover={{ x: 2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { setActiveTab('processor'); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative group ${
+                activeTab === 'processor'
+                  ? 'bg-cyan-500/15 text-cyan-300 shadow-sm shadow-cyan-500/10'
+                  : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+              }`}
+            >
+              {activeTab === 'processor' && (
+                <motion.div layoutId="active-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-cyan-400 rounded-r-full shadow-sm shadow-cyan-400/50" />
+              )}
+              <div className={`p-1.5 rounded-lg mr-3 transition-colors ${activeTab === 'processor' ? 'bg-cyan-500/20' : 'bg-white/[0.04] group-hover:bg-white/[0.08]'}`}>
+                <LayoutDashboard size={16} />
+              </div>
+              Invoice Processor
+            </motion.button>
+
+            {currentUser === 'admin' && (
+              <>
+                <motion.button
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => { setActiveTab('trackers'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative group ${
+                    activeTab === 'trackers'
+                      ? 'bg-cyan-500/15 text-cyan-300 shadow-sm shadow-cyan-500/10'
+                      : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                  }`}
+                >
+                  {activeTab === 'trackers' && (
+                    <motion.div layoutId="active-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-cyan-400 rounded-r-full shadow-sm shadow-cyan-400/50" />
+                  )}
+                  <div className={`p-1.5 rounded-lg mr-3 transition-colors ${activeTab === 'trackers' ? 'bg-cyan-500/20' : 'bg-white/[0.04] group-hover:bg-white/[0.08]'}`}>
+                    <TableProperties size={16} />
+                  </div>
+                  Tracker Sheets
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => { setActiveTab('admin'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative group ${
+                    activeTab === 'admin'
+                      ? 'bg-cyan-500/15 text-cyan-300 shadow-sm shadow-cyan-500/10'
+                      : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                  }`}
+                >
+                  {activeTab === 'admin' && (
+                    <motion.div layoutId="active-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-cyan-400 rounded-r-full shadow-sm shadow-cyan-400/50" />
+                  )}
+                  <div className={`p-1.5 rounded-lg mr-3 transition-colors ${activeTab === 'admin' ? 'bg-cyan-500/20' : 'bg-white/[0.04] group-hover:bg-white/[0.08]'}`}>
+                    <Database size={16} />
+                  </div>
+                  Admin Panel
+                </motion.button>
+              </>
+            )}
+          </nav>
+
+          {/* ── Location Selector ── */}
+          <div className="mt-8">
+            <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3">Location</p>
+            <div className="flex items-center bg-white/[0.04] rounded-xl px-3 py-2.5 border border-white/[0.06] hover:border-white/[0.12] transition-colors">
+              <MapPin size={14} className="text-cyan-400 mr-2.5 shrink-0" />
+              <select
+                value={currentLocation}
+                onChange={handleLocationChange}
+                className="bg-transparent border-none text-[13px] font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full appearance-none"
+              >
+                {LOCATIONS.map(loc => (
+                  <option key={loc} value={loc} className="bg-[#1a202c] text-white">{loc}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
-        
-        <div className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
-          <p className="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Menu</p>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setActiveTab('processor')}
-            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
-              activeTab === 'processor' 
-                ? 'bg-cyan-500/10 text-cyan-400' 
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            {activeTab === 'processor' && (
-              <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
-            )}
-            <LayoutDashboard size={18} className="mr-3" />
-            Invoice Processor
-          </motion.button>
-          {currentUser === 'admin' && (
-            <>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab('trackers')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
-                  activeTab === 'trackers' 
-                    ? 'bg-cyan-500/10 text-cyan-400' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
-              >
-                {activeTab === 'trackers' && (
-                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
-                )}
-                <TableProperties size={18} className="mr-3" />
-                Tracker Sheets
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab('admin')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
-                  activeTab === 'admin' 
-                    ? 'bg-cyan-500/10 text-cyan-400' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
-              >
-                {activeTab === 'admin' && (
-                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
-                )}
-                <Database size={18} className="mr-3" />
-                Admin Panel
-              </motion.button>
-            </>
-          )}
-        </div>
 
-        <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-4">
-          <div className="flex items-center bg-slate-900 rounded-lg px-3 py-2 border border-slate-700">
-            <MapPin size={16} className="text-slate-400 mr-2" />
-            <select 
-              value={currentLocation} 
-              onChange={handleLocationChange}
-              className="bg-transparent border-none text-sm font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full"
-            >
-              {LOCATIONS.map(loc => (
-                <option key={loc} value={loc} className="bg-slate-900">{loc}</option>
-              ))}
-            </select>
+        {/* ── User Profile + Sign Out ── */}
+        <div className="p-4 border-t border-white/[0.06] bg-black/20">
+          <div className="flex items-center gap-3 mb-3 px-1">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-cyan-500/20 shrink-0">
+              {userName ? userName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white truncate">{userName || 'User'}</p>
+              <p className="text-[11px] text-slate-500 truncate">{userEmail || ''}</p>
+            </div>
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shrink-0 ${
+              currentUser === 'admin' ? 'bg-amber-500/15 text-amber-400' : 'bg-cyan-500/15 text-cyan-400'
+            }`}>
+              {currentUser === 'admin' ? 'Admin' : 'Chef'}
+            </span>
           </div>
-          
-          <button 
+
+          <button
             onClick={handleLogout}
-            className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-400 bg-white/[0.04] hover:bg-red-500/10 hover:text-red-400 border border-white/[0.06] hover:border-red-500/20 transition-all"
           >
-            <LogOut size={18} className="mr-3" />
+            <LogOut size={14} />
             Sign Out
           </button>
         </div>
       </aside>
 
-      {/* Main Content Wrapper */}
+      {/* ═══════════════════════════════════════════════════════════
+          MAIN CONTENT WRAPPER
+          ═══════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header (Mobile Nav & Actions) */}
-        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 flex-shrink-0">
-          <div className="flex items-center">
-            {/* Mobile Menu Toggle (Placeholder) */}
-            <button className="md:hidden p-2 mr-3 text-slate-500 hover:bg-slate-100 rounded-md">
+
+        {/* ── Top Header Bar ── */}
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 flex-shrink-0 sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            {/* Mobile hamburger — now wired */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-2 -ml-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-xl transition-colors"
+            >
               <Menu size={20} />
             </button>
-            <h2 className="text-xl font-semibold text-slate-800">
-              {activeTab === 'processor' ? 'Invoice Processor' : activeTab === 'trackers' ? 'Tracker Sheets' : 'Admin Panel'}
-            </h2>
+
+            {/* Page title + breadcrumb */}
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 leading-tight">
+                {activeTab === 'processor' ? 'Invoice Processor' : activeTab === 'trackers' ? 'Tracker Sheets' : 'Admin Panel'}
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+                {activeTab === 'processor'
+                  ? status === 'complete' ? 'Review extracted invoice data' : 'Upload and process supplier invoices'
+                  : activeTab === 'trackers' ? 'Monthly spend tracking and reports'
+                  : 'Manage products, vendors, and settings'
+                }
+              </p>
+            </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-2">
              {activeTab === 'processor' && status === 'complete' && (
                <>
-                 <button 
+                 <button
                   onClick={handleReset}
-                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+                  className="inline-flex items-center px-3.5 py-2 border border-slate-200 text-[13px] font-medium rounded-xl text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-500/40 transition-all shadow-sm"
                  >
-                   <RotateCcw size={16} className="mr-2" />
+                   <RotateCcw size={14} className="mr-2 text-slate-400" />
                    New Scan
                  </button>
-                 <button 
+                 <button
                   onClick={() => result && exportInvoiceToCSV(result as SavedInvoice)}
-                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+                  className="inline-flex items-center px-3.5 py-2 border border-slate-200 text-[13px] font-medium rounded-xl text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-500/40 transition-all shadow-sm"
                  >
-                   <Download size={16} className="mr-2" />
+                   <Download size={14} className="mr-2 text-slate-400" />
                    CSV
                  </button>
-                 <button 
+                 <button
                   onClick={handleDownloadUpdatedInvoice}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-500/40 transition-all shadow-md shadow-cyan-500/20 hover:shadow-cyan-500/30"
                  >
-                   <Download size={16} className="mr-2" />
+                   <Download size={14} className="mr-2" />
                    PDF
                  </button>
                </>
