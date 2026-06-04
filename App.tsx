@@ -829,141 +829,142 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-8 pb-20">
+          <div className="space-y-6 pb-20">
             {/* Duplicate Warning */}
             {duplicateWarning && (
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-4 animate-fade-in">
-                 <AlertTriangle className="text-amber-600 flex-shrink-0 mt-1" size={24} />
-                 <div className="flex-1">
-                    <h4 className="font-bold text-amber-900">Possible Duplicate Invoice Detected</h4>
-                    <p className="text-amber-800 text-sm mt-1">
-                       An invoice with number <strong>{duplicateWarning.invoiceNumber}</strong> from <strong>{duplicateWarning.vendorName}</strong> was already processed on {new Date(duplicateWarning.processedAt).toLocaleDateString()}.
-                    </p>
-                 </div>
-                 <button 
-                   onClick={() => setDuplicateWarning(null)}
-                   className="text-amber-900 underline text-sm font-medium"
-                 >
-                   Dismiss
-                 </button>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-amber-50 border border-amber-200/80 p-4 rounded-2xl flex items-start gap-3"
+              >
+                <div className="p-1.5 bg-amber-100 rounded-lg shrink-0">
+                  <AlertTriangle className="text-amber-600" size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-amber-900">Possible Duplicate Invoice</h4>
+                  <p className="text-amber-800 text-xs mt-0.5 leading-relaxed">
+                    Invoice <strong>#{duplicateWarning.invoiceNumber}</strong> from <strong>{duplicateWarning.vendorName}</strong> was processed on {new Date(duplicateWarning.processedAt).toLocaleDateString()}.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDuplicateWarning(null)}
+                  className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                >
+                  Dismiss
+                </button>
+              </motion.div>
             )}
 
             {result && (
               <>
-                 {/* Explicit Review Header */}
-                 <div className="flex items-center justify-between mb-6">
-                   <div className="flex items-center space-x-3">
-                     <div className="p-2 bg-cyan-100 text-cyan-600 rounded-lg">
-                       <FileText size={24} />
+                 {/* ── Review Header ── */}
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <div className="p-2.5 bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600 rounded-xl border border-cyan-100">
+                       <FileText size={22} />
                      </div>
                      <div>
-                       <h2 className="text-2xl font-bold text-slate-900">Invoice Review</h2>
-                       <p className="text-sm text-slate-500">Verify extracted details before saving</p>
+                       <h2 className="text-xl font-bold text-slate-900 leading-tight">Invoice Review</h2>
+                       <p className="text-xs text-slate-500 mt-0.5">Verify extracted details before saving</p>
                      </div>
                    </div>
                    {previewImage && (
                      <button
                        onClick={handleOpenPreview}
-                       className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+                       className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 text-[13px] font-medium rounded-xl text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
                      >
-                       <ExternalLink size={16} className="mr-2" />
-                       View Original Invoice
+                       <ExternalLink size={14} />
+                       View Original
                      </button>
                    )}
                  </div>
 
-                 {/* Unified Invoice Details Card */}
-                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                 {/* ── Invoice Details Card ── */}
+                 <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden shadow-sm">
                    {/* Address Verification Banner */}
-                   <div className={`px-6 py-4 border-b flex items-start space-x-3 ${isValidAddress ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}>
+                   <div className={`px-5 py-3 border-b flex items-center gap-2.5 ${isValidAddress ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50/60 border-rose-100'}`}>
                       {isValidAddress ? (
-                         <CheckCircle className="text-emerald-600 flex-shrink-0 mt-0.5" size={20} />
+                         <CheckCircle className="text-emerald-500 shrink-0" size={16} />
                       ) : (
-                         <AlertTriangle className="text-rose-600 flex-shrink-0 mt-0.5" size={20} />
+                         <AlertTriangle className="text-rose-500 shrink-0" size={16} />
                       )}
-                      <div>
-                         <h4 className={`text-sm font-semibold ${isValidAddress ? 'text-emerald-900' : 'text-rose-900'}`}>
-                             {isValidAddress ? 'Delivery Address Verified' : 'Warning: Delivery Address Mismatch'}
-                         </h4>
-                         <p className={`text-xs mt-0.5 ${isValidAddress ? 'text-emerald-700' : 'text-rose-700'}`}>
-                             Detected: {result.deliveryAddress || "Not found"}
-                         </p>
-                         {!isValidAddress && (
-                             <p className="text-xs text-rose-600 mt-1 font-medium">
-                                 Please verify this invoice is for the correct location (Centerpointe or 3801 W Temple).
-                             </p>
-                         )}
+                      <div className="flex-1 min-w-0">
+                         <span className={`text-xs font-semibold ${isValidAddress ? 'text-emerald-800' : 'text-rose-800'}`}>
+                             {isValidAddress ? 'Address Verified' : 'Address Mismatch'}
+                         </span>
+                         <span className={`text-xs ml-2 ${isValidAddress ? 'text-emerald-600' : 'text-rose-600'}`}>
+                             {result.deliveryAddress || "Not detected"}
+                         </span>
                       </div>
                    </div>
 
                    {/* Editable Details Grid */}
-                   <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                   <div className="p-5 grid grid-cols-2 lg:grid-cols-5 gap-4">
                      {/* Vendor */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <Building2 size={14} className="mr-1.5" /> Vendor
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <Building2 size={11} /> Vendor
                        </label>
-                       <p className="text-base font-bold text-slate-900 truncate" title={result.vendorName}>
+                       <p className="text-sm font-bold text-slate-900 truncate" title={result.vendorName}>
                          {result.vendorName || "Unknown"}
                        </p>
                      </div>
 
                      {/* Invoice Date */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <Calendar size={14} className="mr-1.5" /> Date
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <Calendar size={11} /> Date
                        </label>
-                       <input 
-                         type="text" 
-                         value={result.invoiceDate || ''} 
+                       <input
+                         type="text"
+                         value={result.invoiceDate || ''}
                          onChange={(e) => setResult({...result, invoiceDate: e.target.value})}
-                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 px-3 transition-colors"
+                         className="w-full rounded-lg border-slate-200 bg-slate-50/50 shadow-sm focus:border-cyan-400 focus:ring-cyan-400 text-sm py-1.5 px-2.5 font-medium transition-colors"
                          placeholder="YYYY-MM-DD"
                        />
                      </div>
 
                      {/* Invoice Number */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <Hash size={14} className="mr-1.5" /> Invoice #
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <Hash size={11} /> Invoice #
                        </label>
-                       <input 
-                         type="text" 
-                         value={result.invoiceNumber || ''} 
+                       <input
+                         type="text"
+                         value={result.invoiceNumber || ''}
                          onChange={(e) => setResult({...result, invoiceNumber: e.target.value})}
-                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 px-3 transition-colors"
-                         placeholder="Invoice #"
+                         className="w-full rounded-lg border-slate-200 bg-slate-50/50 shadow-sm focus:border-cyan-400 focus:ring-cyan-400 text-sm py-1.5 px-2.5 font-medium font-mono transition-colors"
+                         placeholder="INV-000"
                        />
                      </div>
 
                      {/* Total Amount */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <DollarSign size={14} className="mr-1.5" /> Total Amount
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <DollarSign size={11} /> Total
                        </label>
                        <div className="relative">
-                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                           <span className="text-slate-500 sm:text-sm font-medium">$</span>
+                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
+                           <span className="text-slate-400 text-sm font-semibold">$</span>
                          </div>
-                         <input 
-                           type="number" 
+                         <input
+                           type="number"
                            step="0.01"
-                           value={result.totalAmount === 0 ? '' : result.totalAmount} 
+                           value={result.totalAmount === 0 ? '' : result.totalAmount}
                            onChange={(e) => setResult({...result, totalAmount: e.target.value as any})}
-                           className="w-full rounded-lg border-slate-300 pl-7 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 transition-colors font-medium"
+                           className="w-full rounded-lg border-slate-200 bg-slate-50/50 pl-6 shadow-sm focus:border-cyan-400 focus:ring-cyan-400 text-sm py-1.5 font-bold font-mono transition-colors"
                            placeholder="0.00"
                          />
                        </div>
                      </div>
 
                      {/* Items Count */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <Tag size={14} className="mr-1.5" /> Items
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <Tag size={11} /> Items
                        </label>
-                       <div className="flex items-center h-[38px]">
-                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-800">
+                       <div className="flex items-center h-[34px]">
+                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-100">
                            {result.items.length} line items
                          </span>
                        </div>
