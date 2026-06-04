@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getSavedInvoices, updateInvoiceSplits, getCustomVendors, addCustomVendor } from '../services/storageService';
 import { SavedInvoice, TrackerSplits, CustomVendor } from '../types';
 import { exportAllToCSV } from '../utils/csvExport';
-import { Edit2, Eye, Save, X, Table as TableIcon, List, Plus, Calculator, PieChart as PieChartIcon, Calendar, TrendingUp, DollarSign, ShoppingCart, Package, Download, CheckCircle2, MapPin } from 'lucide-react';
+import { Edit2, Eye, Save, X, Table as TableIcon, List, Plus, Calculator, PieChart as PieChartIcon, Calendar, TrendingUp, DollarSign, ShoppingCart, Package, Download, CheckCircle2, MapPin, Trash2, ArrowLeft } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 const INITIAL_FOOD_COLS = [
@@ -197,6 +197,13 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
   // Excel view editing state
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
 
+  // Hidden food columns (vendors removed by user this session)
+  const [hiddenFoodCols, setHiddenFoodCols] = useState<Set<string>>(new Set());
+  const [hiddenNonFoodCols, setHiddenNonFoodCols] = useState<Set<string>>(new Set());
+
+  // Vendor drill-down (analytics)
+  const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
+
   useEffect(() => {
     const loadData = async () => {
     const loadedInvoices = await getSavedInvoices();
@@ -352,13 +359,16 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
 
   const FOOD_COLS = useMemo(() => {
     const custom = customVendors.filter(v => v.type === 'food').map(v => v.name);
-    return [...INITIAL_FOOD_COLS, ...custom];
-  }, [customVendors]);
+    // Deduplicate and filter hidden columns
+    const all = [...new Set([...INITIAL_FOOD_COLS, ...custom])];
+    return all.filter(col => !hiddenFoodCols.has(col));
+  }, [customVendors, hiddenFoodCols]);
 
   const NON_FOOD_COLS = useMemo(() => {
     const custom = customVendors.filter(v => v.type === 'nonFood').map(v => v.name);
-    return [...INITIAL_NON_FOOD_COLS, ...custom];
-  }, [customVendors]);
+    const all = [...new Set([...INITIAL_NON_FOOD_COLS, ...custom])];
+    return all.filter(col => !hiddenNonFoodCols.has(col));
+  }, [customVendors, hiddenNonFoodCols]);
 
   const filteredInvoices = useMemo(() => {
     let filtered = invoices;
@@ -654,8 +664,18 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col" style={{ maxHeight: '80vh' }}>
             <div className="bg-cyan-600 px-6 py-4 flex justify-between items-center shrink-0">
               <h3 className="text-lg font-bold text-white tracking-wide">FOOD TRACKER</h3>
-              <div className="text-cyan-100 text-sm font-medium bg-cyan-700/50 px-3 py-1 rounded-full">
-                Click any cell to edit
+              <div className="flex items-center gap-3">
+                {hiddenFoodCols.size > 0 && (
+                  <button
+                    onClick={() => setHiddenFoodCols(new Set())}
+                    className="text-cyan-100 text-xs font-medium bg-cyan-700/50 hover:bg-cyan-700 px-3 py-1 rounded-full transition-colors"
+                  >
+                    Restore {hiddenFoodCols.size} hidden column{hiddenFoodCols.size > 1 ? 's' : ''}
+                  </button>
+                )}
+                <div className="text-cyan-100 text-sm font-medium bg-cyan-700/50 px-3 py-1 rounded-full">
+                  Click any cell to edit
+                </div>
               </div>
             </div>
             <div className="overflow-auto custom-scrollbar relative flex-1">
@@ -664,8 +684,17 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                   <tr>
                     <th className="sticky top-0 left-0 z-30 bg-slate-100 border-b border-r border-slate-200 px-3 py-3 text-center text-xs font-bold text-slate-700 w-16 shadow-[1px_1px_0_0_#e2e8f0]">Day</th>
                     {FOOD_COLS.map(col => (
-                      <th key={col} className="sticky top-0 z-20 bg-slate-50 border-b border-r border-slate-200 px-3 py-3 text-center text-xs font-semibold text-slate-600 min-w-[110px] shadow-[0_1px_0_0_#e2e8f0]">
-                        {col}
+                      <th key={col} className="sticky top-0 z-20 bg-slate-50 border-b border-r border-slate-200 px-2 py-2 text-center text-xs font-semibold text-slate-600 min-w-[110px] shadow-[0_1px_0_0_#e2e8f0] group/th">
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="truncate">{col}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setHiddenFoodCols(prev => new Set([...prev, col])); }}
+                            title={`Hide ${col} column`}
+                            className="opacity-0 group-hover/th:opacity-100 p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
                       </th>
                     ))}
                     <th className="sticky top-0 right-0 z-30 bg-cyan-50 border-b border-l border-slate-200 px-4 py-3 text-center text-xs font-bold text-cyan-900 shadow-[-1px_1px_0_0_#e2e8f0]">Daily Total</th>
@@ -797,7 +826,93 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
         </div>
       )}
 
-      {view === 'analytics' && (
+      {view === 'analytics' && selectedVendor && (
+        <div className="animate-fade-in mb-8">
+          {/* ── Vendor Drill-Down View ── */}
+          <button
+            onClick={() => setSelectedVendor(null)}
+            className="flex items-center gap-2 text-sm font-medium text-cyan-600 hover:text-cyan-800 mb-6 transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back to Analytics
+          </button>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">{selectedVendor}</h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {selectedMonth ? new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'All time'} spending details
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total This Month</p>
+                <p className="text-2xl font-black text-slate-900">
+                  ${filteredInvoices
+                    .filter(inv => {
+                      const vn = (inv.vendorName || '').toLowerCase();
+                      const sv = selectedVendor.toLowerCase();
+                      return vn.includes(sv) || sv.includes(vn.split(/[,/]/)[0].trim());
+                    })
+                    .reduce((sum, inv) => sum + (parseFloat(inv.totalAmount as any) || 0), 0)
+                    .toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/50">
+                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Invoice #</th>
+                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Total Amount</th>
+                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Food</th>
+                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Non-Food</th>
+                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Location</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(() => {
+                    const vendorInvoices = filteredInvoices.filter(inv => {
+                      const vn = (inv.vendorName || '').toLowerCase();
+                      const sv = selectedVendor.toLowerCase();
+                      return vn.includes(sv) || sv.includes(vn.split(/[,/]/)[0].trim());
+                    }).sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime());
+
+                    if (vendorInvoices.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                            No invoices from this vendor in the selected month.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return vendorInvoices.map(inv => {
+                      const splits = inv.splits || { food: 0, nonFoodExpendable: 0, nonFoodNonExpendable: 0, nonFoodOther: 0 };
+                      const nonFood = splits.nonFoodExpendable + splits.nonFoodNonExpendable + splits.nonFoodOther;
+                      return (
+                        <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4 text-sm font-medium text-slate-900">{inv.invoiceDate || 'N/A'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600 font-mono">{inv.invoiceNumber || 'N/A'}</td>
+                          <td className="px-6 py-4 text-sm font-bold text-slate-900 text-right">${(parseFloat(inv.totalAmount as any) || 0).toFixed(2)}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-cyan-700 text-right">{splits.food ? `$${splits.food.toFixed(2)}` : '-'}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-emerald-700 text-right">{nonFood ? `$${nonFood.toFixed(2)}` : '-'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{inv.location || 'Centerpointe'}</td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view === 'analytics' && !selectedVendor && (
         <div className="space-y-6 animate-fade-in mb-8">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -886,7 +1001,12 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                         dataKey="value"
                       >
                         {dashboardData.pieChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                            onClick={() => setSelectedVendor(entry.name)}
+                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                          />
                         ))}
                       </Pie>
                       <RechartsTooltip 
@@ -919,8 +1039,12 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {dashboardData.foodVendorTotals.slice(0, 5).map((vendor) => (
-                      <tr key={vendor.name} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 text-sm font-semibold text-slate-900">{vendor.name}</td>
+                      <tr
+                        key={vendor.name}
+                        onClick={() => setSelectedVendor(vendor.name)}
+                        className="hover:bg-cyan-50 transition-colors cursor-pointer group"
+                      >
+                        <td className="py-3 text-sm font-semibold text-slate-900 group-hover:text-cyan-700">{vendor.name}</td>
                         <td className="py-3 text-sm font-bold text-orange-600 text-right">${vendor.amount.toFixed(2)}</td>
                         <td className="py-3 text-sm font-medium text-slate-500 text-right">
                           {dashboardData.totalFoodSpend > 0 ? ((vendor.amount / dashboardData.totalFoodSpend) * 100).toFixed(1) : 0}%
@@ -956,8 +1080,12 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                     {dashboardData.nonFoodVendorTotals.slice(0, 5).map((vendor) => {
                       const displayName = vendor.name.includes(':') ? vendor.name.split(':')[1].trim() : vendor.name;
                       return (
-                        <tr key={vendor.name} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 text-sm font-semibold text-slate-900 truncate max-w-[150px]" title={vendor.name}>{displayName}</td>
+                        <tr
+                          key={vendor.name}
+                          onClick={() => setSelectedVendor(displayName)}
+                          className="hover:bg-cyan-50 transition-colors cursor-pointer group"
+                        >
+                          <td className="py-3 text-sm font-semibold text-slate-900 truncate max-w-[150px] group-hover:text-cyan-700" title={vendor.name}>{displayName}</td>
                           <td className="py-3 text-sm font-bold text-orange-600 text-right">${vendor.amount.toFixed(2)}</td>
                           <td className="py-3 text-sm font-medium text-slate-500 text-right">
                             {dashboardData.totalNonFoodSpend > 0 ? ((vendor.amount / dashboardData.totalNonFoodSpend) * 100).toFixed(1) : 0}%
