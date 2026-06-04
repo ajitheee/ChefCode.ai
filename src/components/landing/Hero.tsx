@@ -46,7 +46,7 @@ export default function Hero() {
             {/* CTAs */}
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <a
-                href="#pricing"
+                href="/app"
                 className="group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-brand-500 text-white font-semibold text-base hover:bg-brand-600 transition-all shadow-xl shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5"
               >
                 Start Free Trial
