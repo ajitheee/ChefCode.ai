@@ -11,17 +11,30 @@ import { analyzeInvoiceImage } from './services/geminiService';
 import { saveInvoiceToHistory, checkForDuplicate, getSavedInvoices } from './services/storageService';
 import { saveNewProduct } from './services/productService';
 import { signOut, getSession, getUserRole, getUserName, onAuthStateChange } from './services/authService';
+import { supabase } from './services/supabaseClient';
+
+interface LocationData {
+  id: string;
+  name: string;
+  location_code: string | null;
+}
+interface VendorData {
+  id: string;
+  canonical_name: string;
+  account_code: string | null;
+  aliases: string[];
+}
 import { exportInvoiceToCSV } from './utils/csvExport';
 import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { motion, AnimatePresence } from 'motion/react';
 
-const LOCATIONS = ['Centerpointe', '3801 W Temple', 'Location C'];
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserRole>(null);
   const [currentLocation, setCurrentLocation] = useState<string>('Centerpointe');
+  const [locations, setLocations] = useState<LocationData[]>([]);
+  const [vendors, setVendors] = useState<VendorData[]>([]);
   
   const [activeTab, setActiveTab] = useState<'processor' | 'trackers' | 'admin'>('processor');
   const [status, setStatus] = useState<ProcessingStatus>('idle');
@@ -70,6 +83,23 @@ const App: React.FC = () => {
       setRecentInvoices(invoices.slice(0, 5));
     };
     loadRecent();
+
+    // Load locations + vendors from Supabase
+    const loadOrgData = async () => {
+      const [locRes, vendorRes] = await Promise.all([
+        supabase.from('locations').select('id, name, location_code').eq('is_active', true).order('name'),
+        supabase.from('vendors').select('id, canonical_name, account_code, aliases').eq('is_active', true).order('canonical_name'),
+      ]);
+      if (locRes.data) {
+        setLocations(locRes.data as LocationData[]);
+        // If current location isn't in the list, switch to first available
+        if (locRes.data.length > 0 && !locRes.data.some((l: any) => l.name === savedLoc)) {
+          setCurrentLocation(locRes.data[0].name);
+        }
+      }
+      if (vendorRes.data) setVendors(vendorRes.data as VendorData[]);
+    };
+    loadOrgData();
 
     return () => { subscription.unsubscribe(); };
   }, []);
@@ -275,6 +305,25 @@ const App: React.FC = () => {
     return vendorName.split(',')[0].split('-')[0].trim();
   };
 
+  // Lookup vendor account code (F02124, F02198, etc.) by matching invoice vendor name
+  // against the vendors table in Supabase
+  const getVendorAccountCode = (vendorName: string): string => {
+    if (!vendorName || vendors.length === 0) return '';
+    const normalized = vendorName.toLowerCase();
+    const matched = vendors.find(v => {
+      const canonName = (v.canonical_name || '').toLowerCase();
+      if (normalized.includes(canonName) || canonName.includes(normalized.split(',')[0].trim())) return true;
+      return (v.aliases || []).some(a => normalized.includes((a || '').toLowerCase()));
+    });
+    return matched?.account_code || '';
+  };
+
+  // Lookup current location's code (170130, 170131, etc.)
+  const getCurrentLocationCode = (): string => {
+    const loc = locations.find(l => l.name === currentLocation);
+    return loc?.location_code || '';
+  };
+
   const handleDownloadUpdatedInvoice = async () => {
     if (!result || !previewImage) return;
 
@@ -282,7 +331,15 @@ const App: React.FC = () => {
     const safeVendor = cleanVendor.replace(/[/\\?%*:|"<>]/g, '-');
     const safeInvNum = (result.invoiceNumber || "UnknownInvoice").replace(/[/\\?%*:|"<>]/g, '-');
     const totalAmt = parseFloat(result.totalAmount as any) || 0;
-    const fileName = `F02124 ${safeVendor} ${safeInvNum} $${totalAmt.toFixed(2)}.pdf`;
+
+    // Build prefix: VENDOR_CODE LOCATION_CODE (e.g. "F02124 170130")
+    // Falls back gracefully if codes aren't set yet
+    const vendorCode = getVendorAccountCode(result.vendorName);
+    const locCode = getCurrentLocationCode();
+    const codePrefix = [vendorCode, locCode].filter(Boolean).join(' ');
+    const fileName = codePrefix
+      ? `${codePrefix} ${safeVendor} ${safeInvNum} $${totalAmt.toFixed(2)}.pdf`
+      : `${safeVendor} ${safeInvNum} $${totalAmt.toFixed(2)}.pdf`;
 
     const doc = new jsPDF();
     
@@ -570,9 +627,15 @@ const App: React.FC = () => {
                 onChange={handleLocationChange}
                 className="bg-transparent border-none text-[13px] font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full appearance-none"
               >
-                {LOCATIONS.map(loc => (
-                  <option key={loc} value={loc} className="bg-[#1a202c] text-white">{loc}</option>
-                ))}
+                {locations.length === 0 ? (
+                  <option value={currentLocation} className="bg-[#1a202c] text-white">{currentLocation}</option>
+                ) : (
+                  locations.map(loc => (
+                    <option key={loc.id} value={loc.name} className="bg-[#1a202c] text-white">
+                      {loc.name}{loc.location_code ? ` (${loc.location_code})` : ''}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>
@@ -926,6 +989,40 @@ const App: React.FC = () => {
                          </span>
                       </div>
                    </div>
+
+                   {/* Vendor Code + Location Code Banner */}
+                   {(() => {
+                     const vCode = getVendorAccountCode(result.vendorName);
+                     const lCode = getCurrentLocationCode();
+                     const hasMissing = !vCode || !lCode;
+                     return (
+                       <div className={`px-5 py-3 border-b flex items-center gap-3 ${hasMissing ? 'bg-amber-50/60 border-amber-100' : 'bg-slate-50/60 border-slate-100'}`}>
+                         <div className="flex items-center gap-2 flex-1">
+                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Reference</span>
+                           <div className="flex items-center gap-1.5">
+                             <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-md ${vCode ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`} title="Vendor account code">
+                               {vCode || 'No vendor code'}
+                             </span>
+                             <span className="text-slate-300 text-xs">/</span>
+                             <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-md ${lCode ? 'bg-cyan-100 text-cyan-700' : 'bg-amber-100 text-amber-700'}`} title="Location code">
+                               {lCode || 'No location code'}
+                             </span>
+                             <span className="text-xs text-slate-500 ml-2">
+                               {currentLocation}
+                             </span>
+                           </div>
+                         </div>
+                         {hasMissing && (
+                           <button
+                             onClick={() => setActiveTab('admin')}
+                             className="text-[11px] font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-md transition-colors"
+                           >
+                             Set codes →
+                           </button>
+                         )}
+                       </div>
+                     );
+                   })()}
 
                    {/* Editable Details Grid */}
                    <div className="p-5 grid grid-cols-2 lg:grid-cols-5 gap-4">
