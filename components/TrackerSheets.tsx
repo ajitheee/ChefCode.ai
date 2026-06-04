@@ -179,8 +179,11 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
   const [invoices, setInvoices] = useState<SavedInvoice[]>([]);
   const [customVendors, setCustomVendors] = useState<CustomVendor[]>([]);
   
-  // Month selection state
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  // Month selection — initialize to CURRENT month immediately (no useEffect delay)
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
 
   // Add Vendor Modal state
@@ -246,28 +249,24 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
     
     setInvoices(migratedInvoices);
 
-    // Extract available months from invoices
+    // Build available months: all months from invoices + past 12 months
     const months = new Set<string>();
     migratedInvoices.forEach(inv => {
       const m = getMonthYear(inv.invoiceDate);
       if (m) months.add(m);
     });
 
-    // Always include current month + previous 11 months (full year view)
     const now = new Date();
     for (let i = -11; i <= 1; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       months.add(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
     }
 
+    // Always include the currently selected month
+    if (selectedMonth) months.add(selectedMonth);
+
     const sortedMonths = Array.from(months).sort().reverse();
     setAvailableMonths(sortedMonths);
-
-    // Always default to CURRENT month (today) — not the latest invoice month
-    if (!selectedMonth) {
-      const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-      setSelectedMonth(currentMonthStr);
-    }
     };
     loadData();
   }, [selectedMonth]);
