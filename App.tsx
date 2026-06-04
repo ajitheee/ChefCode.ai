@@ -10,7 +10,7 @@ import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product, U
 import { analyzeInvoiceImage } from './services/geminiService';
 import { saveInvoiceToHistory, checkForDuplicate, getSavedInvoices } from './services/storageService';
 import { saveNewProduct } from './services/productService';
-import { signOut, getSession, getUserRole, onAuthStateChange } from './services/authService';
+import { signOut, getSession, getUserRole, getUserName, onAuthStateChange } from './services/authService';
 import { exportInvoiceToCSV } from './utils/csvExport';
 import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -35,12 +35,17 @@ const App: React.FC = () => {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [productToAdd, setProductToAdd] = useState<InvoiceItem | null>(null);
   const [recentInvoices, setRecentInvoices] = useState<SavedInvoice[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
     // Check for existing Supabase session on load
     getSession().then((session) => {
       if (session?.user) {
         setCurrentUser(getUserRole(session.user));
+        setUserName(getUserName(session.user));
+        setUserEmail(session.user.email || '');
       }
     });
 
@@ -48,8 +53,12 @@ const App: React.FC = () => {
     const subscription = onAuthStateChange((user) => {
       if (user) {
         setCurrentUser(getUserRole(user));
+        setUserName(getUserName(user));
+        setUserEmail(user.email || '');
       } else {
         setCurrentUser(null);
+        setUserName('');
+        setUserEmail('');
       }
     });
 
@@ -439,146 +448,217 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 bg-[#1a202c] text-white flex flex-col hidden md:flex flex-shrink-0">
-        <div className="h-16 flex items-center px-6 bg-[#141923] border-b border-slate-700/50">
-          <div className="flex items-center w-full py-2">
-            <div className="bg-white p-1.5 rounded-xl border border-slate-200 mr-3 flex flex-shrink-0 items-center justify-center shadow-sm relative">
-              <img 
-                src="/logo.png" 
-                alt="Logo" 
-                className="h-[36px] w-auto object-contain" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  document.getElementById('fallback-icon-sidebar')!.style.display = 'block';
-                }} 
-              />
-              <ChefHat id="fallback-icon-sidebar" size={28} className="text-slate-800" style={{ display: 'none' }} />
+    <div className="min-h-screen bg-slate-100/60 flex">
+
+      {/* ═══════════════════════════════════════════════════════════
+          SIDEBAR — Desktop (always visible) + Mobile (overlay drawer)
+          ═══════════════════════════════════════════════════════════ */}
+
+      {/* Mobile overlay backdrop */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-gradient-to-b from-[#0f1629] to-[#1a202c] text-white flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0 md:z-auto
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* ── Logo Area ── */}
+        <div className="h-[72px] flex items-center justify-between px-5 border-b border-white/[0.06]">
+          <div className="flex items-center">
+            <div className="bg-gradient-to-br from-cyan-400 to-cyan-600 p-2 rounded-xl mr-3 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <ChefHat size={22} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">ChefCode<span className="text-cyan-400">.ai</span></h1>
+              <h1 className="text-xl font-bold tracking-tight text-white">ChefCode<span className="text-cyan-400">.ai</span></h1>
+              <p className="text-[10px] text-slate-500 font-medium -mt-0.5 tracking-wide">INVOICE INTELLIGENCE</p>
+            </div>
+          </div>
+          {/* Close button (mobile only) */}
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* ── Navigation ── */}
+        <div className="flex-1 py-6 px-3 overflow-y-auto">
+          <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3">Main Menu</p>
+
+          <nav className="space-y-1">
+            <motion.button
+              whileHover={{ x: 2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { setActiveTab('processor'); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative group ${
+                activeTab === 'processor'
+                  ? 'bg-cyan-500/15 text-cyan-300 shadow-sm shadow-cyan-500/10'
+                  : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+              }`}
+            >
+              {activeTab === 'processor' && (
+                <motion.div layoutId="active-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-cyan-400 rounded-r-full shadow-sm shadow-cyan-400/50" />
+              )}
+              <div className={`p-1.5 rounded-lg mr-3 transition-colors ${activeTab === 'processor' ? 'bg-cyan-500/20' : 'bg-white/[0.04] group-hover:bg-white/[0.08]'}`}>
+                <LayoutDashboard size={16} />
+              </div>
+              Invoice Processor
+            </motion.button>
+
+            {currentUser === 'admin' && (
+              <>
+                <motion.button
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => { setActiveTab('trackers'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative group ${
+                    activeTab === 'trackers'
+                      ? 'bg-cyan-500/15 text-cyan-300 shadow-sm shadow-cyan-500/10'
+                      : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                  }`}
+                >
+                  {activeTab === 'trackers' && (
+                    <motion.div layoutId="active-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-cyan-400 rounded-r-full shadow-sm shadow-cyan-400/50" />
+                  )}
+                  <div className={`p-1.5 rounded-lg mr-3 transition-colors ${activeTab === 'trackers' ? 'bg-cyan-500/20' : 'bg-white/[0.04] group-hover:bg-white/[0.08]'}`}>
+                    <TableProperties size={16} />
+                  </div>
+                  Tracker Sheets
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => { setActiveTab('admin'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative group ${
+                    activeTab === 'admin'
+                      ? 'bg-cyan-500/15 text-cyan-300 shadow-sm shadow-cyan-500/10'
+                      : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                  }`}
+                >
+                  {activeTab === 'admin' && (
+                    <motion.div layoutId="active-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-cyan-400 rounded-r-full shadow-sm shadow-cyan-400/50" />
+                  )}
+                  <div className={`p-1.5 rounded-lg mr-3 transition-colors ${activeTab === 'admin' ? 'bg-cyan-500/20' : 'bg-white/[0.04] group-hover:bg-white/[0.08]'}`}>
+                    <Database size={16} />
+                  </div>
+                  Admin Panel
+                </motion.button>
+              </>
+            )}
+          </nav>
+
+          {/* ── Location Selector ── */}
+          <div className="mt-8">
+            <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3">Location</p>
+            <div className="flex items-center bg-white/[0.04] rounded-xl px-3 py-2.5 border border-white/[0.06] hover:border-white/[0.12] transition-colors">
+              <MapPin size={14} className="text-cyan-400 mr-2.5 shrink-0" />
+              <select
+                value={currentLocation}
+                onChange={handleLocationChange}
+                className="bg-transparent border-none text-[13px] font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full appearance-none"
+              >
+                {LOCATIONS.map(loc => (
+                  <option key={loc} value={loc} className="bg-[#1a202c] text-white">{loc}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
-        
-        <div className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
-          <p className="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Menu</p>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setActiveTab('processor')}
-            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
-              activeTab === 'processor' 
-                ? 'bg-cyan-500/10 text-cyan-400' 
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-            }`}
-          >
-            {activeTab === 'processor' && (
-              <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
-            )}
-            <LayoutDashboard size={18} className="mr-3" />
-            Invoice Processor
-          </motion.button>
-          {currentUser === 'admin' && (
-            <>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab('trackers')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
-                  activeTab === 'trackers' 
-                    ? 'bg-cyan-500/10 text-cyan-400' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
-              >
-                {activeTab === 'trackers' && (
-                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
-                )}
-                <TableProperties size={18} className="mr-3" />
-                Tracker Sheets
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab('admin')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
-                  activeTab === 'admin' 
-                    ? 'bg-cyan-500/10 text-cyan-400' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
-              >
-                {activeTab === 'admin' && (
-                  <motion.div layoutId="active-nav" className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full" />
-                )}
-                <Database size={18} className="mr-3" />
-                Admin Panel
-              </motion.button>
-            </>
-          )}
-        </div>
 
-        <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-4">
-          <div className="flex items-center bg-slate-900 rounded-lg px-3 py-2 border border-slate-700">
-            <MapPin size={16} className="text-slate-400 mr-2" />
-            <select 
-              value={currentLocation} 
-              onChange={handleLocationChange}
-              className="bg-transparent border-none text-sm font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full"
-            >
-              {LOCATIONS.map(loc => (
-                <option key={loc} value={loc} className="bg-slate-900">{loc}</option>
-              ))}
-            </select>
+        {/* ── User Profile + Sign Out ── */}
+        <div className="p-4 border-t border-white/[0.06] bg-black/20">
+          <div className="flex items-center gap-3 mb-3 px-1">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-cyan-500/20 shrink-0">
+              {userName ? userName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white truncate">{userName || 'User'}</p>
+              <p className="text-[11px] text-slate-500 truncate">{userEmail || ''}</p>
+            </div>
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shrink-0 ${
+              currentUser === 'admin' ? 'bg-amber-500/15 text-amber-400' : 'bg-cyan-500/15 text-cyan-400'
+            }`}>
+              {currentUser === 'admin' ? 'Admin' : 'Chef'}
+            </span>
           </div>
-          
-          <button 
+
+          <button
             onClick={handleLogout}
-            className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-400 bg-white/[0.04] hover:bg-red-500/10 hover:text-red-400 border border-white/[0.06] hover:border-red-500/20 transition-all"
           >
-            <LogOut size={18} className="mr-3" />
+            <LogOut size={14} />
             Sign Out
           </button>
         </div>
       </aside>
 
-      {/* Main Content Wrapper */}
+      {/* ═══════════════════════════════════════════════════════════
+          MAIN CONTENT WRAPPER
+          ═══════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header (Mobile Nav & Actions) */}
-        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 flex-shrink-0">
-          <div className="flex items-center">
-            {/* Mobile Menu Toggle (Placeholder) */}
-            <button className="md:hidden p-2 mr-3 text-slate-500 hover:bg-slate-100 rounded-md">
+
+        {/* ── Top Header Bar ── */}
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 flex-shrink-0 sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            {/* Mobile hamburger — now wired */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-2 -ml-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-xl transition-colors"
+            >
               <Menu size={20} />
             </button>
-            <h2 className="text-xl font-semibold text-slate-800">
-              {activeTab === 'processor' ? 'Invoice Processor' : activeTab === 'trackers' ? 'Tracker Sheets' : 'Admin Panel'}
-            </h2>
+
+            {/* Page title + breadcrumb */}
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 leading-tight">
+                {activeTab === 'processor' ? 'Invoice Processor' : activeTab === 'trackers' ? 'Tracker Sheets' : 'Admin Panel'}
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+                {activeTab === 'processor'
+                  ? status === 'complete' ? 'Review extracted invoice data' : 'Upload and process supplier invoices'
+                  : activeTab === 'trackers' ? 'Monthly spend tracking and reports'
+                  : 'Manage products, vendors, and settings'
+                }
+              </p>
+            </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-2">
              {activeTab === 'processor' && status === 'complete' && (
                <>
-                 <button 
+                 <button
                   onClick={handleReset}
-                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+                  className="inline-flex items-center px-3.5 py-2 border border-slate-200 text-[13px] font-medium rounded-xl text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-500/40 transition-all shadow-sm"
                  >
-                   <RotateCcw size={16} className="mr-2" />
+                   <RotateCcw size={14} className="mr-2 text-slate-400" />
                    New Scan
                  </button>
-                 <button 
+                 <button
                   onClick={() => result && exportInvoiceToCSV(result as SavedInvoice)}
-                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+                  className="inline-flex items-center px-3.5 py-2 border border-slate-200 text-[13px] font-medium rounded-xl text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-500/40 transition-all shadow-sm"
                  >
-                   <Download size={16} className="mr-2" />
+                   <Download size={14} className="mr-2 text-slate-400" />
                    CSV
                  </button>
-                 <button 
+                 <button
                   onClick={handleDownloadUpdatedInvoice}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-500/40 transition-all shadow-md shadow-cyan-500/20 hover:shadow-cyan-500/30"
                  >
-                   <Download size={16} className="mr-2" />
+                   <Download size={14} className="mr-2" />
                    PDF
                  </button>
                </>
@@ -602,274 +682,318 @@ const App: React.FC = () => {
                 ) : activeTab === 'trackers' ? (
                   <TrackerSheets location={currentLocation} />
                 ) : isSaved ? (
-               <div className="flex flex-col items-center justify-center py-20">
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", bounce: 0.5 }}
-                    className="bg-green-100 p-4 rounded-full text-green-600 mb-4"
+               <div className="flex flex-col items-center justify-center py-16">
+                  {/* Success animation */}
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", bounce: 0.5, duration: 0.8 }}
+                    className="relative mb-6"
                   >
-                    <CheckCircle2 size={48} />
+                    <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-2xl scale-150" />
+                    <div className="relative bg-gradient-to-br from-emerald-400 to-emerald-600 p-5 rounded-2xl shadow-xl shadow-emerald-500/20">
+                      <CheckCircle2 size={40} className="text-white" />
+                    </div>
                   </motion.div>
-                  <h2 className="text-2xl font-bold text-slate-900">Invoice Saved!</h2>
-                  <p className="text-slate-500 mt-2 mb-8">Your invoice has been successfully processed and saved.</p>
-                  <div className="flex gap-4">
-                    <button 
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-center"
+                  >
+                    <h2 className="text-2xl font-extrabold text-slate-900">Invoice Saved!</h2>
+                    <p className="text-slate-500 mt-2 mb-2 text-sm max-w-sm">
+                      Successfully processed and saved to your database.
+                    </p>
+                    {result && (
+                      <div className="inline-flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-2 mt-2 mb-8">
+                        <span className="text-xs font-semibold text-slate-500">{result.vendorName}</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        <span className="text-xs font-mono text-slate-500">#{result.invoiceNumber}</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-300" />
+                        <span className="text-xs font-bold text-slate-700">${(parseFloat(result.totalAmount as any) || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex gap-3"
+                  >
+                    <button
                       onClick={handleDownloadUpdatedInvoice}
-                      className="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-all hover:shadow-md"
+                      className="inline-flex items-center gap-2 px-6 py-3 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 hover:-translate-y-0.5"
                     >
-                      <Download size={20} className="mr-2" />
-                      Download Updated Invoice
+                      <Download size={16} />
+                      Download PDF
                     </button>
-                    <button 
+                    <button
                       onClick={handleReset}
-                      className="inline-flex items-center px-6 py-3 border border-slate-300 shadow-sm text-base font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-all hover:shadow-md"
+                      className="inline-flex items-center gap-2 px-6 py-3 border border-slate-200 text-sm font-medium rounded-xl text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
                     >
-                      <RotateCcw size={20} className="mr-2" />
+                      <RotateCcw size={16} />
                       New Scan
                     </button>
-                  </div>
+                  </motion.div>
                </div>
             ) : status === 'idle' || status === 'uploading' || status === 'analyzing' || status === 'error' ? (
-          <div className="max-w-3xl mx-auto mt-12">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
+          <div className="max-w-4xl mx-auto mt-6">
+            {/* ── Hero Header ── */}
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 bg-cyan-50 border border-cyan-200/60 rounded-full px-4 py-1.5 mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                <span className="text-xs font-semibold text-cyan-700 uppercase tracking-wider">AI-Powered Processing</span>
+              </div>
+              <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl tracking-tight">
                 Code Invoices in Seconds
               </h2>
-              <p className="mt-4 text-lg text-slate-500">
-                Upload your supplier invoices (Sysco, US Foods, etc.) and let our AI automatically assign GL codes to every line item.
+              <p className="mt-3 text-base text-slate-500 max-w-lg mx-auto leading-relaxed">
+                Upload supplier invoices from Sysco, US Foods, and more. Our AI extracts every line item and assigns GL codes automatically.
               </p>
             </div>
-            
-            <FileUpload 
-              onFileSelect={handleFileSelect} 
-              isProcessing={status === 'analyzing' || status === 'uploading'} 
+
+            {/* ── File Upload Dropzone ── */}
+            <FileUpload
+              onFileSelect={handleFileSelect}
+              isProcessing={status === 'analyzing' || status === 'uploading'}
             />
 
+            {/* ── Error Alert ── */}
             {status === 'error' && (
-              <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-center justify-center">
-                 <p>{errorMsg}</p>
-                 <button onClick={handleReset} className="ml-4 underline font-medium">Try again</button>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3"
+              >
+                <AlertTriangle size={18} className="text-red-500 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-red-800">{errorMsg}</p>
+                </div>
+                <button onClick={handleReset} className="text-sm font-semibold text-red-600 hover:text-red-800 whitespace-nowrap">
+                  Try again
+                </button>
+              </motion.div>
             )}
-            
-            <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-3">
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
-                   <span className="text-xl font-bold">1</span>
-                </div>
-                <h3 className="mt-4 text-lg font-medium text-slate-900">Upload Invoice</h3>
-                <p className="mt-2 text-base text-slate-500">
-                  Drag & drop an image of your invoice.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
-                   <span className="text-xl font-bold">2</span>
-                </div>
-                <h3 className="mt-4 text-lg font-medium text-slate-900">AI Analysis</h3>
-                <p className="mt-2 text-base text-slate-500">
-                  We read line items and map them to your 63xx/7xxx codes.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-cyan-500 text-white mx-auto">
-                   <span className="text-xl font-bold">3</span>
-                </div>
-                <h3 className="mt-4 text-lg font-medium text-slate-900">Review & Export</h3>
-                <p className="mt-2 text-base text-slate-500">
-                  Verify the data and export to your accounting system.
-                </p>
-              </div>
-            </div>
-            
-            <div className="mt-16 border-t border-slate-200 pt-12">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center">
-                  <Calendar className="mr-2 text-cyan-500" size={24} />
-                  Recent Activity
-                </h3>
-                <button 
-                  onClick={() => setActiveTab('trackers')}
-                  className="text-sm font-medium text-cyan-600 hover:text-cyan-700 flex items-center"
+
+            {/* ── 3-Step Process Cards ── */}
+            <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {[
+                { num: '01', title: 'Upload Invoice', desc: 'Drag & drop a PDF or photo of your supplier invoice.', color: 'from-cyan-500 to-blue-500', bg: 'bg-cyan-50' },
+                { num: '02', title: 'AI Analysis', desc: 'Line items extracted, products matched, GL codes assigned.', color: 'from-violet-500 to-purple-500', bg: 'bg-violet-50' },
+                { num: '03', title: 'Review & Export', desc: 'Verify the data and export to CSV, PDF, or QuickBooks.', color: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50' },
+              ].map((step, i) => (
+                <motion.div
+                  key={step.num}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.1 }}
+                  className="relative bg-white rounded-2xl border border-slate-200/60 p-6 hover:shadow-lg hover:border-slate-300/60 transition-all duration-300 group"
                 >
-                  View All <ExternalLink size={14} className="ml-1" />
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${step.color} text-white text-sm font-bold shadow-md mb-4`}>
+                    {step.num}
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mb-1.5">{step.title}</h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">{step.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* ── Recent Activity ── */}
+            <div className="mt-14 pt-10 border-t border-slate-200/60">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-cyan-50">
+                    <Calendar size={18} className="text-cyan-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+                </div>
+                <button
+                  onClick={() => setActiveTab('trackers')}
+                  className="text-sm font-medium text-cyan-600 hover:text-cyan-700 flex items-center gap-1 transition-colors"
+                >
+                  View All <ExternalLink size={13} />
                 </button>
               </div>
 
               {recentInvoices.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {recentInvoices.map((invoice, idx) => (
-                    <motion.div 
+                    <motion.div
                       key={invoice.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group cursor-pointer"
+                      transition={{ delay: idx * 0.08 }}
+                      className="bg-white p-4 rounded-xl border border-slate-200/60 hover:border-slate-300 hover:shadow-md transition-all duration-200 flex items-center justify-between group cursor-pointer"
                     >
-                      <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-600 group-hover:bg-cyan-100 transition-colors">
-                          <FileText size={20} />
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-50 to-blue-50 flex items-center justify-center text-cyan-600 group-hover:from-cyan-100 group-hover:to-blue-100 transition-colors shrink-0 border border-cyan-100">
+                          <FileText size={18} />
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{invoice.vendorName || 'Unknown Vendor'}</p>
-                          <p className="text-xs text-slate-500 flex items-center mt-0.5">
-                            <Hash size={12} className="mr-1" /> {invoice.invoiceNumber || 'N/A'}
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{invoice.vendorName || 'Unknown Vendor'}</p>
+                          <p className="text-xs text-slate-400 flex items-center mt-0.5 font-mono">
+                            #{invoice.invoiceNumber || 'N/A'}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0 ml-3">
                         <p className="text-sm font-bold text-slate-900">${parseFloat(invoice.totalAmount as any || 0).toFixed(2)}</p>
-                        <p className="text-xs text-slate-500">{new Date(invoice.processedAt).toLocaleDateString()}</p>
+                        <p className="text-[11px] text-slate-400">{new Date(invoice.processedAt).toLocaleDateString()}</p>
                       </div>
                     </motion.div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
-                  <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
-                  <h4 className="text-sm font-medium text-slate-900">No recent invoices</h4>
-                  <p className="text-sm text-slate-500 mt-1">Upload your first invoice to see it here.</p>
+                <div className="text-center py-14 bg-gradient-to-br from-slate-50 to-cyan-50/30 rounded-2xl border border-slate-200/60 border-dashed">
+                  <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-7 w-7 text-slate-300" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-700">No invoices yet</h4>
+                  <p className="text-sm text-slate-500 mt-1">Upload your first invoice above to get started.</p>
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="space-y-8 pb-20">
+          <div className="space-y-6 pb-20">
             {/* Duplicate Warning */}
             {duplicateWarning && (
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-4 animate-fade-in">
-                 <AlertTriangle className="text-amber-600 flex-shrink-0 mt-1" size={24} />
-                 <div className="flex-1">
-                    <h4 className="font-bold text-amber-900">Possible Duplicate Invoice Detected</h4>
-                    <p className="text-amber-800 text-sm mt-1">
-                       An invoice with number <strong>{duplicateWarning.invoiceNumber}</strong> from <strong>{duplicateWarning.vendorName}</strong> was already processed on {new Date(duplicateWarning.processedAt).toLocaleDateString()}.
-                    </p>
-                 </div>
-                 <button 
-                   onClick={() => setDuplicateWarning(null)}
-                   className="text-amber-900 underline text-sm font-medium"
-                 >
-                   Dismiss
-                 </button>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-amber-50 border border-amber-200/80 p-4 rounded-2xl flex items-start gap-3"
+              >
+                <div className="p-1.5 bg-amber-100 rounded-lg shrink-0">
+                  <AlertTriangle className="text-amber-600" size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-amber-900">Possible Duplicate Invoice</h4>
+                  <p className="text-amber-800 text-xs mt-0.5 leading-relaxed">
+                    Invoice <strong>#{duplicateWarning.invoiceNumber}</strong> from <strong>{duplicateWarning.vendorName}</strong> was processed on {new Date(duplicateWarning.processedAt).toLocaleDateString()}.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDuplicateWarning(null)}
+                  className="text-xs font-semibold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                >
+                  Dismiss
+                </button>
+              </motion.div>
             )}
 
             {result && (
               <>
-                 {/* Explicit Review Header */}
-                 <div className="flex items-center justify-between mb-6">
-                   <div className="flex items-center space-x-3">
-                     <div className="p-2 bg-cyan-100 text-cyan-600 rounded-lg">
-                       <FileText size={24} />
+                 {/* ── Review Header ── */}
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <div className="p-2.5 bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600 rounded-xl border border-cyan-100">
+                       <FileText size={22} />
                      </div>
                      <div>
-                       <h2 className="text-2xl font-bold text-slate-900">Invoice Review</h2>
-                       <p className="text-sm text-slate-500">Verify extracted details before saving</p>
+                       <h2 className="text-xl font-bold text-slate-900 leading-tight">Invoice Review</h2>
+                       <p className="text-xs text-slate-500 mt-0.5">Verify extracted details before saving</p>
                      </div>
                    </div>
                    {previewImage && (
                      <button
                        onClick={handleOpenPreview}
-                       className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors"
+                       className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 text-[13px] font-medium rounded-xl text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
                      >
-                       <ExternalLink size={16} className="mr-2" />
-                       View Original Invoice
+                       <ExternalLink size={14} />
+                       View Original
                      </button>
                    )}
                  </div>
 
-                 {/* Unified Invoice Details Card */}
-                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                 {/* ── Invoice Details Card ── */}
+                 <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden shadow-sm">
                    {/* Address Verification Banner */}
-                   <div className={`px-6 py-4 border-b flex items-start space-x-3 ${isValidAddress ? 'bg-emerald-50/50 border-emerald-100' : 'bg-rose-50/50 border-rose-100'}`}>
+                   <div className={`px-5 py-3 border-b flex items-center gap-2.5 ${isValidAddress ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50/60 border-rose-100'}`}>
                       {isValidAddress ? (
-                         <CheckCircle className="text-emerald-600 flex-shrink-0 mt-0.5" size={20} />
+                         <CheckCircle className="text-emerald-500 shrink-0" size={16} />
                       ) : (
-                         <AlertTriangle className="text-rose-600 flex-shrink-0 mt-0.5" size={20} />
+                         <AlertTriangle className="text-rose-500 shrink-0" size={16} />
                       )}
-                      <div>
-                         <h4 className={`text-sm font-semibold ${isValidAddress ? 'text-emerald-900' : 'text-rose-900'}`}>
-                             {isValidAddress ? 'Delivery Address Verified' : 'Warning: Delivery Address Mismatch'}
-                         </h4>
-                         <p className={`text-xs mt-0.5 ${isValidAddress ? 'text-emerald-700' : 'text-rose-700'}`}>
-                             Detected: {result.deliveryAddress || "Not found"}
-                         </p>
-                         {!isValidAddress && (
-                             <p className="text-xs text-rose-600 mt-1 font-medium">
-                                 Please verify this invoice is for the correct location (Centerpointe or 3801 W Temple).
-                             </p>
-                         )}
+                      <div className="flex-1 min-w-0">
+                         <span className={`text-xs font-semibold ${isValidAddress ? 'text-emerald-800' : 'text-rose-800'}`}>
+                             {isValidAddress ? 'Address Verified' : 'Address Mismatch'}
+                         </span>
+                         <span className={`text-xs ml-2 ${isValidAddress ? 'text-emerald-600' : 'text-rose-600'}`}>
+                             {result.deliveryAddress || "Not detected"}
+                         </span>
                       </div>
                    </div>
 
                    {/* Editable Details Grid */}
-                   <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                   <div className="p-5 grid grid-cols-2 lg:grid-cols-5 gap-4">
                      {/* Vendor */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <Building2 size={14} className="mr-1.5" /> Vendor
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <Building2 size={11} /> Vendor
                        </label>
-                       <p className="text-base font-bold text-slate-900 truncate" title={result.vendorName}>
+                       <p className="text-sm font-bold text-slate-900 truncate" title={result.vendorName}>
                          {result.vendorName || "Unknown"}
                        </p>
                      </div>
 
                      {/* Invoice Date */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <Calendar size={14} className="mr-1.5" /> Date
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <Calendar size={11} /> Date
                        </label>
-                       <input 
-                         type="text" 
-                         value={result.invoiceDate || ''} 
+                       <input
+                         type="text"
+                         value={result.invoiceDate || ''}
                          onChange={(e) => setResult({...result, invoiceDate: e.target.value})}
-                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 px-3 transition-colors"
+                         className="w-full rounded-lg border-slate-200 bg-slate-50/50 shadow-sm focus:border-cyan-400 focus:ring-cyan-400 text-sm py-1.5 px-2.5 font-medium transition-colors"
                          placeholder="YYYY-MM-DD"
                        />
                      </div>
 
                      {/* Invoice Number */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <Hash size={14} className="mr-1.5" /> Invoice #
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <Hash size={11} /> Invoice #
                        </label>
-                       <input 
-                         type="text" 
-                         value={result.invoiceNumber || ''} 
+                       <input
+                         type="text"
+                         value={result.invoiceNumber || ''}
                          onChange={(e) => setResult({...result, invoiceNumber: e.target.value})}
-                         className="w-full rounded-lg border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 px-3 transition-colors"
-                         placeholder="Invoice #"
+                         className="w-full rounded-lg border-slate-200 bg-slate-50/50 shadow-sm focus:border-cyan-400 focus:ring-cyan-400 text-sm py-1.5 px-2.5 font-medium font-mono transition-colors"
+                         placeholder="INV-000"
                        />
                      </div>
 
                      {/* Total Amount */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <DollarSign size={14} className="mr-1.5" /> Total Amount
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <DollarSign size={11} /> Total
                        </label>
                        <div className="relative">
-                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                           <span className="text-slate-500 sm:text-sm font-medium">$</span>
+                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
+                           <span className="text-slate-400 text-sm font-semibold">$</span>
                          </div>
-                         <input 
-                           type="number" 
+                         <input
+                           type="number"
                            step="0.01"
-                           value={result.totalAmount === 0 ? '' : result.totalAmount} 
+                           value={result.totalAmount === 0 ? '' : result.totalAmount}
                            onChange={(e) => setResult({...result, totalAmount: e.target.value as any})}
-                           className="w-full rounded-lg border-slate-300 pl-7 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm py-2 transition-colors font-medium"
+                           className="w-full rounded-lg border-slate-200 bg-slate-50/50 pl-6 shadow-sm focus:border-cyan-400 focus:ring-cyan-400 text-sm py-1.5 font-bold font-mono transition-colors"
                            placeholder="0.00"
                          />
                        </div>
                      </div>
 
                      {/* Items Count */}
-                     <div className="lg:col-span-1">
-                       <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                         <Tag size={14} className="mr-1.5" /> Items
+                     <div>
+                       <label className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                         <Tag size={11} /> Items
                        </label>
-                       <div className="flex items-center h-[38px]">
-                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-800">
+                       <div className="flex items-center h-[34px]">
+                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-100">
                            {result.items.length} line items
                          </span>
                        </div>
@@ -879,17 +1003,25 @@ const App: React.FC = () => {
 
                 <Dashboard data={result} />
                 
-                <div className="mt-8">
+                <div className="mt-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-900">Line Items Review</h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Verify codes below. Click <span className="text-cyan-600 font-medium">Add to DB</span> to save new products for future scans.
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-violet-50 border border-violet-100">
+                        <TableProperties size={16} className="text-violet-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-bold text-slate-900 leading-tight">Line Items Review</h2>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Verify GL codes. Click <span className="text-cyan-600 font-semibold">Add to DB</span> to save products for future scans.
                         </p>
+                      </div>
                     </div>
+                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      {result.items.length} items
+                    </span>
                   </div>
-                  <InvoiceTable 
-                    items={result.items} 
+                  <InvoiceTable
+                    items={result.items}
                     onUpdateItem={handleUpdateItem}
                     onDeleteItem={handleDeleteItem}
                     onAddToDb={handleOpenAddProduct}
@@ -912,30 +1044,47 @@ const App: React.FC = () => {
         onSave={handleSaveProduct}
       />
       
-      {/* Floating Action Bar for Completion */}
+      {/* ── Floating Action Bar ── */}
       {status === 'complete' && !isSaved && (
-        <div className="fixed bottom-0 left-0 md:left-64 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
-           <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
-              <p className="text-sm text-slate-500 hidden sm:block">
-                 Found {result?.items.length} items totaling ${(parseFloat(result?.totalAmount as any) || 0).toFixed(2)}
-              </p>
-              <div className="flex gap-4 ml-auto">
-                 <button 
-                  onClick={handleReset}
-                  className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50"
-                 >
-                   Cancel
-                 </button>
-                 <button 
-                  onClick={handleSaveAndFinish}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 flex items-center shadow-md transform hover:-translate-y-0.5 transition-all"
-                 >
-                   <CheckCircle2 size={20} className="mr-2" />
-                   Finalize & Save
-                 </button>
+        <motion.div
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          className="fixed bottom-0 left-0 md:left-72 right-0 z-40"
+        >
+          <div className="bg-white/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-8px_30px_-5px_rgba(0,0,0,0.08)]">
+            <div className="max-w-7xl mx-auto px-5 py-3.5 flex items-center justify-between">
+              {/* Left: Summary */}
+              <div className="hidden sm:flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5">
+                  <FileText size={14} className="text-slate-500" />
+                  <span className="text-sm font-semibold text-slate-700">{result?.items.length} items</span>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-50 rounded-lg px-3 py-1.5 border border-emerald-100">
+                  <DollarSign size={14} className="text-emerald-600" />
+                  <span className="text-sm font-bold text-emerald-700">${(parseFloat(result?.totalAmount as any) || 0).toFixed(2)}</span>
+                </div>
               </div>
-           </div>
-        </div>
+
+              {/* Right: Actions */}
+              <div className="flex gap-3 ml-auto">
+                <button
+                  onClick={handleReset}
+                  className="px-5 py-2 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAndFinish}
+                  className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-[13px] font-bold hover:from-emerald-600 hover:to-emerald-700 flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all"
+                >
+                  <CheckCircle2 size={16} />
+                  Finalize & Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       )}
     </div>
   );
