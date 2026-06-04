@@ -235,46 +235,31 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
       return inv;
     });
 
-    if (needsSave) {
-      localStorage.setItem('chefcode_processed_invoices', JSON.stringify(migratedInvoices));
-    }
+    // Splits migration handled by Supabase storage now
     
     setInvoices(migratedInvoices);
 
-    // Extract available months
+    // Extract available months from invoices
     const months = new Set<string>();
     migratedInvoices.forEach(inv => {
       const m = getMonthYear(inv.invoiceDate);
       if (m) months.add(m);
     });
-    
-    // Always include current month, previous month, and next 6 months
+
+    // Always include current month + previous 11 months (full year view)
     const now = new Date();
-    for (let i = -1; i <= 6; i++) {
+    for (let i = -11; i <= 1; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       months.add(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
     }
 
     const sortedMonths = Array.from(months).sort().reverse();
     setAvailableMonths(sortedMonths);
-    
-    // Auto-select the most recent month if not already selected
+
+    // Always default to CURRENT month (today) — not the latest invoice month
     if (!selectedMonth) {
-      let defaultMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-      
-      if (migratedInvoices.length > 0) {
-        // Sort by invoice date to find the most recent month
-        const sortedByDate = [...migratedInvoices].sort((a, b) => {
-          return new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime();
-        });
-        
-        const latestMonth = getMonthYear(sortedByDate[0].invoiceDate);
-        if (latestMonth) {
-          defaultMonthStr = latestMonth;
-        }
-      }
-      
-      setSelectedMonth(defaultMonthStr);
+      const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+      setSelectedMonth(currentMonthStr);
     }
     };
     loadData();
@@ -315,7 +300,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
     setEditingCell({ day, col, type, currentValue, newValue: currentValue > 0 ? currentValue.toString() : '' });
   };
 
-  const handleCellSave = () => {
+  const handleCellSave = async () => {
     if (!editingCell) return;
     
     const newTotal = parseFloat(editingCell.newValue) || 0;
@@ -348,9 +333,19 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
         splits
       };
 
-      const updatedInvoices = [...invoices, manualEntry];
-      localStorage.setItem('chefcode_processed_invoices', JSON.stringify(updatedInvoices));
-      setInvoices(updatedInvoices);
+      // Save manual entry via Supabase (reuse the storage service)
+      const { saveInvoiceToHistory: saveManual } = await import('../services/storageService');
+      await saveManual({
+        vendorName: manualEntry.vendorName,
+        invoiceNumber: manualEntry.invoiceNumber,
+        invoiceDate: manualEntry.invoiceDate,
+        totalAmount: manualEntry.totalAmount,
+        items: [],
+        location: location || 'Centerpointe',
+      });
+      // Reload invoices from database
+      const { getSavedInvoices: reload } = await import('../services/storageService');
+      setInvoices(await reload());
     }
     setEditingCell(null);
   };
