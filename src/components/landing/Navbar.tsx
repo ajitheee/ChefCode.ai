@@ -56,7 +56,7 @@ export default function Navbar() {
         {/* ── CTA buttons ── */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="#pricing"
+            href="/app"
             className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
               scrolled ? 'text-slate-700 hover:text-brand-600' : 'text-white/80 hover:text-white'
             }`}
@@ -64,7 +64,7 @@ export default function Navbar() {
             Sign In
           </a>
           <a
-            href="#pricing"
+            href="/app"
             className="text-sm font-semibold px-5 py-2.5 rounded-xl bg-brand-500 text-white hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40"
           >
             Start Free Trial
@@ -100,10 +100,10 @@ export default function Navbar() {
               </a>
             ))}
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-              <a href="#pricing" className="text-center py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50">
+              <a href="/app" className="text-center py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50">
                 Sign In
               </a>
-              <a href="#pricing" className="text-center py-2.5 text-sm font-semibold text-white bg-brand-500 rounded-xl hover:bg-brand-600">
+              <a href="/app" className="text-center py-2.5 text-sm font-semibold text-white bg-brand-500 rounded-xl hover:bg-brand-600">
                 Start Free Trial
               </a>
             </div>
