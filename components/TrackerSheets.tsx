@@ -198,8 +198,9 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
 
   useEffect(() => {
-    const loadedInvoices = getSavedInvoices();
-    const loadedVendors = getCustomVendors();
+    const loadData = async () => {
+    const loadedInvoices = await getSavedInvoices();
+    const loadedVendors = await getCustomVendors();
     setCustomVendors(loadedVendors);
     
     // Migration: Calculate splits for any old invoices that don't have them
@@ -275,11 +276,13 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
       
       setSelectedMonth(defaultMonthStr);
     }
+    };
+    loadData();
   }, [selectedMonth]);
 
-  const handleAddVendor = () => {
+  const handleAddVendor = async () => {
     if (!newVendorForm.name.trim()) return;
-    const newVendor = addCustomVendor(newVendorForm);
+    const newVendor = await addCustomVendor(newVendorForm);
     setCustomVendors([...customVendors, newVendor]);
     setShowAddVendor(false);
     setNewVendorForm({ name: '', type: 'food' });
@@ -291,15 +294,15 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
     setEditForm(inv.splits || { food: 0, nonFoodExpendable: 0, nonFoodNonExpendable: 0, nonFoodOther: 0 });
   };
 
-  const handleSave = (id: string) => {
+  const handleSave = async (id: string) => {
     const splits: TrackerSplits = {
       food: parseFloat(editForm.food as string) || 0,
       nonFoodExpendable: parseFloat(editForm.nonFoodExpendable as string) || 0,
       nonFoodNonExpendable: parseFloat(editForm.nonFoodNonExpendable as string) || 0,
       nonFoodOther: parseFloat(editForm.nonFoodOther as string) || 0,
     };
-    updateInvoiceSplits(id, splits);
-    setInvoices(getSavedInvoices());
+    await updateInvoiceSplits(id, splits);
+    setInvoices(await getSavedInvoices());
     setEditingId(null);
   };
 

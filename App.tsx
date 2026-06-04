@@ -10,6 +10,7 @@ import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product, U
 import { analyzeInvoiceImage } from './services/geminiService';
 import { saveInvoiceToHistory, checkForDuplicate, getSavedInvoices } from './services/storageService';
 import { saveNewProduct } from './services/productService';
+import { signOut, getSession, getUserRole, onAuthStateChange } from './services/authService';
 import { exportInvoiceToCSV } from './utils/csvExport';
 import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -36,9 +37,22 @@ const App: React.FC = () => {
   const [recentInvoices, setRecentInvoices] = useState<SavedInvoice[]>([]);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('chefcode_user') as UserRole;
-    if (savedUser) setCurrentUser(savedUser);
-    
+    // Check for existing Supabase session on load
+    getSession().then((session) => {
+      if (session?.user) {
+        setCurrentUser(getUserRole(session.user));
+      }
+    });
+
+    // Listen for auth changes (login/logout from other tabs)
+    const subscription = onAuthStateChange((user) => {
+      if (user) {
+        setCurrentUser(getUserRole(user));
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
     const savedLoc = localStorage.getItem('chefcode_location');
     if (savedLoc) setCurrentLocation(savedLoc);
 
@@ -47,16 +61,17 @@ const App: React.FC = () => {
       setRecentInvoices(invoices.slice(0, 5));
     };
     loadRecent();
+
+    return () => { subscription.unsubscribe(); };
   }, []);
 
   const handleLogin = (role: UserRole) => {
     setCurrentUser(role);
-    localStorage.setItem('chefcode_user', role || '');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     setCurrentUser(null);
-    localStorage.removeItem('chefcode_user');
   };
 
   const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -100,7 +115,7 @@ const App: React.FC = () => {
       data.location = currentLocation;
 
       // Check for price spikes
-      const history = getSavedInvoices();
+      const history = await getSavedInvoices();
       const enrichedItems = data.items.map(item => {
         let lastPrice: number | null = null;
         let lastDate: string | null = null;
@@ -131,7 +146,7 @@ const App: React.FC = () => {
       data.items = enrichedItems;
 
       // Check for duplicates
-      const duplicate = checkForDuplicate(data);
+      const duplicate = await checkForDuplicate(data);
       if (duplicate) {
         setDuplicateWarning(duplicate);
       }
@@ -203,11 +218,15 @@ const App: React.FC = () => {
     setPreviewImage(null);
   };
 
-  const handleSaveAndFinish = () => {
+  const handleSaveAndFinish = async () => {
     if (result) {
-      saveInvoiceToHistory(result);
-      setIsSaved(true);
-      // Removed auto-reset so user can download the updated invoice
+      try {
+        await saveInvoiceToHistory(result);
+        setIsSaved(true);
+      } catch (err: any) {
+        console.error('Failed to save invoice:', err);
+        setErrorMsg('Failed to save invoice. Please try again.');
+      }
     }
   };
 
