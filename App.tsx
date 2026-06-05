@@ -90,43 +90,44 @@ const App: React.FC = () => {
     };
     loadRecent();
 
-    // Load locations + vendors + user profile from Supabase
+    // Load locations + vendors + user profile + access list from Supabase
     const loadOrgData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      const [locRes, vendorRes, profileRes] = await Promise.all([
+      const [locRes, vendorRes, profileRes, accessRes] = await Promise.all([
         supabase.from('locations').select('id, name, location_code, address_keywords').eq('is_active', true).order('name'),
         supabase.from('vendors').select('id, canonical_name, account_code, aliases').eq('is_active', true).order('canonical_name'),
-        user ? supabase.from('profiles').select('role, location_id').eq('id', user.id).single() : Promise.resolve({ data: null }),
+        supabase.from('profiles').select('role, location_id').eq('id', user.id).single(),
+        supabase.from('user_location_access').select('location_id, role').eq('user_id', user.id),
       ]);
 
       if (vendorRes.data) setVendors(vendorRes.data as VendorData[]);
 
-      const locs = (locRes.data || []) as LocationData[];
-      setLocations(locs);
+      // Build set of accessible location IDs from user_location_access
+      const accessRows = (accessRes.data || []) as { location_id: string; role: string }[];
+      const accessibleIds = new Set(accessRows.map(r => r.location_id));
 
-      // Apply user's profile role + location
+      // Filter all org locations down to only accessible ones (the silo)
+      const allLocs = (locRes.data || []) as LocationData[];
+      const accessibleLocs = allLocs.filter(l => accessibleIds.has(l.id));
+      setLocations(accessibleLocs);
+
+      // Apply user's profile role
       const profile: any = profileRes.data;
-      if (profile?.role) {
-        setUserDbRole(profile.role);
-      }
-      if (profile?.location_id) {
-        setUserLocationId(profile.location_id);
-      }
+      if (profile?.role) setUserDbRole(profile.role);
+      if (profile?.location_id) setUserLocationId(profile.location_id);
 
-      // Determine effective current location:
-      // - Chef/Viewer → forced to their assigned location
-      // - Owner/Manager → use saved choice (or first available)
-      const role = profile?.role || 'owner';
-      const lockedToLoc = (role === 'chef' || role === 'viewer') && profile?.location_id
-        ? locs.find(l => l.id === profile.location_id)
-        : null;
+      // Pick active location:
+      // 1. Try the saved location from localStorage (if user still has access)
+      // 2. Fall back to first accessible location
+      let activeLoc: LocationData | undefined;
+      if (savedLoc) activeLoc = accessibleLocs.find(l => l.name === savedLoc);
+      if (!activeLoc && accessibleLocs.length > 0) activeLoc = accessibleLocs[0];
 
-      if (lockedToLoc) {
-        setCurrentLocation(lockedToLoc.name);
-        localStorage.setItem('chefcode_location', lockedToLoc.name);
-      } else if (locs.length > 0 && !locs.some(l => l.name === savedLoc)) {
-        setCurrentLocation(locs[0].name);
+      if (activeLoc) {
+        setCurrentLocation(activeLoc.name);
+        localStorage.setItem('chefcode_location', activeLoc.name);
       }
     };
     loadOrgData();
@@ -290,7 +291,9 @@ const App: React.FC = () => {
   const handleSaveAndFinish = async () => {
     if (result) {
       try {
-        await saveInvoiceToHistory(result);
+        // Look up active location's UUID for proper RLS filtering
+        const activeLoc = locations.find(l => l.name === currentLocation);
+        await saveInvoiceToHistory(result, activeLoc?.id || null);
         setIsSaved(true);
       } catch (err: any) {
         console.error('Failed to save invoice:', err);
@@ -883,6 +886,39 @@ const App: React.FC = () => {
                </div>
             ) : status === 'idle' || status === 'uploading' || status === 'analyzing' || status === 'error' ? (
           <div className="max-w-4xl mx-auto mt-6">
+            {/* ── No-Access Banner ── */}
+            {locations.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4"
+              >
+                <div className="p-2.5 bg-amber-100 rounded-xl shrink-0">
+                  <MapPin className="text-amber-600" size={22} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-amber-900">No Location Access</h3>
+                  <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+                    You don't have access to any locations yet.{' '}
+                    {userDbRole === 'owner' ? (
+                      <>Go to <strong>Admin Panel → Locations</strong> to create your first location.</>
+                    ) : (
+                      <>Ask your organization owner to grant you access to a location.</>
+                    )}
+                  </p>
+                  {userDbRole === 'owner' && (
+                    <button
+                      onClick={() => setActiveTab('admin')}
+                      className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                    >
+                      <Database size={14} />
+                      Go to Admin Panel
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             {/* ── Hero Header ── */}
             <div className="text-center mb-10">
               <div className="inline-flex items-center gap-2 bg-cyan-50 border border-cyan-200/60 rounded-full px-4 py-1.5 mb-4">

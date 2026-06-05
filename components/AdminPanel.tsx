@@ -26,6 +26,7 @@ interface TeamMemberRow {
   role: string;
   location_id: string | null;
   location_name?: string;
+  access_location_ids: string[]; // UUIDs of all locations this user can access
 }
 
 export const AdminPanel: React.FC = () => {
@@ -80,17 +81,29 @@ export const AdminPanel: React.FC = () => {
     // Get org_id from profile
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
-    const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('org_id, role').eq('id', user.id).single();
     if (!profile?.org_id) { setSaving(false); return; }
 
-    const { error } = await supabase.from('locations').insert({
-      org_id: profile.org_id,
-      name: newLocation.name,
-      location_code: newLocation.location_code,
-      address: newLocation.address || null,
-    });
+    // 1. Create the location
+    const { data: newLoc, error } = await supabase
+      .from('locations')
+      .insert({
+        org_id: profile.org_id,
+        name: newLocation.name,
+        location_code: newLocation.location_code,
+        address: newLocation.address || null,
+      })
+      .select()
+      .single();
 
-    if (!error) {
+    // 2. Auto-grant the creator access to the new location
+    if (!error && newLoc) {
+      await supabase.from('user_location_access').insert({
+        user_id: user.id,
+        location_id: newLoc.id,
+        role: profile.role || 'owner',
+      });
+
       setNewLocation({ name: '', location_code: '', address: '' });
       await loadLocations();
     }
@@ -127,31 +140,48 @@ export const AdminPanel: React.FC = () => {
 
     if (!profiles) return;
 
-    // Fetch location names for each team member
-    const locIds = profiles.map(p => p.location_id).filter(Boolean);
-    let locMap: Record<string, string> = {};
-    if (locIds.length > 0) {
-      const { data: locs } = await supabase
-        .from('locations')
-        .select('id, name')
-        .in('id', locIds);
-      locs?.forEach(l => { locMap[l.id] = l.name; });
-    }
+    // Fetch all location access entries for these users
+    const userIds = profiles.map(p => p.id);
+    const { data: accessRows } = await supabase
+      .from('user_location_access')
+      .select('user_id, location_id')
+      .in('user_id', userIds);
+
+    // Build access map: user_id -> Set<location_id>
+    const accessMap: Record<string, string[]> = {};
+    (accessRows || []).forEach((r: any) => {
+      if (!accessMap[r.user_id]) accessMap[r.user_id] = [];
+      accessMap[r.user_id].push(r.location_id);
+    });
 
     setTeam(profiles.map(p => ({
       id: p.id,
       full_name: p.full_name || 'Unnamed',
       role: p.role || 'chef',
       location_id: p.location_id,
-      location_name: p.location_id ? locMap[p.location_id] : undefined,
+      access_location_ids: accessMap[p.id] || [],
     })));
   };
 
-  const handleUpdateTeamMember = async (id: string, role: string, location_id: string | null) => {
-    await supabase
-      .from('profiles')
-      .update({ role, location_id: location_id || null })
-      .eq('id', id);
+  // Update role on the profile (cross-org default role)
+  const handleUpdateTeamRole = async (userId: string, role: string) => {
+    await supabase.from('profiles').update({ role }).eq('id', userId);
+    await loadTeam();
+  };
+
+  // Toggle a single location's access for a user
+  const handleToggleLocationAccess = async (userId: string, locationId: string, currentlyHas: boolean, role: string) => {
+    if (currentlyHas) {
+      await supabase
+        .from('user_location_access')
+        .delete()
+        .eq('user_id', userId)
+        .eq('location_id', locationId);
+    } else {
+      await supabase
+        .from('user_location_access')
+        .insert({ user_id: userId, location_id: locationId, role });
+    }
     await loadTeam();
   };
 
@@ -492,32 +522,33 @@ export const AdminPanel: React.FC = () => {
 
             <div className="divide-y divide-slate-100">
               {team.map(member => (
-                <div key={member.id} className="px-6 py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0 ${
-                      member.role === 'owner' ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
-                      member.role === 'manager' ? 'bg-gradient-to-br from-violet-400 to-purple-500' :
-                      member.role === 'chef' ? 'bg-gradient-to-br from-cyan-400 to-blue-500' :
-                      'bg-gradient-to-br from-slate-400 to-slate-500'
-                    }`}>
-                      {member.full_name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{member.full_name}</p>
-                      {member.location_name && (
-                        <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                          <MapPin size={10} /> {member.location_name}
+                <div key={member.id} className="px-6 py-4 hover:bg-slate-50/50 transition-colors">
+                  {/* Row 1: Avatar, name, role */}
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0 ${
+                        member.role === 'owner' ? 'bg-gradient-to-br from-amber-400 to-orange-500' :
+                        member.role === 'manager' ? 'bg-gradient-to-br from-violet-400 to-purple-500' :
+                        member.role === 'chef' ? 'bg-gradient-to-br from-cyan-400 to-blue-500' :
+                        'bg-gradient-to-br from-slate-400 to-slate-500'
+                      }`}>
+                        {member.full_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{member.full_name}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {member.access_location_ids.length === 0
+                            ? 'No location access'
+                            : `Access to ${member.access_location_ids.length} location${member.access_location_ids.length > 1 ? 's' : ''}`}
                         </p>
-                      )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
                     {/* Role selector */}
                     <select
                       value={member.role}
-                      onChange={(e) => handleUpdateTeamMember(member.id, e.target.value, member.location_id)}
-                      className={`text-xs font-bold py-1.5 px-2.5 rounded-lg border appearance-none cursor-pointer ${
+                      onChange={(e) => handleUpdateTeamRole(member.id, e.target.value)}
+                      className={`text-xs font-bold py-1.5 px-2.5 rounded-lg border appearance-none cursor-pointer shrink-0 ${
                         member.role === 'owner' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                         member.role === 'manager' ? 'bg-violet-50 text-violet-700 border-violet-200' :
                         member.role === 'chef' ? 'bg-cyan-50 text-cyan-700 border-cyan-200' :
@@ -529,18 +560,32 @@ export const AdminPanel: React.FC = () => {
                       <option value="chef">Chef</option>
                       <option value="viewer">Viewer</option>
                     </select>
+                  </div>
 
-                    {/* Location selector */}
-                    <select
-                      value={member.location_id || ''}
-                      onChange={(e) => handleUpdateTeamMember(member.id, member.role, e.target.value || null)}
-                      className="text-xs font-medium py-1.5 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 min-w-[140px] cursor-pointer"
-                    >
-                      <option value="">— No location —</option>
-                      {locations.map(loc => (
-                        <option key={loc.id} value={loc.id}>{loc.name}</option>
-                      ))}
-                    </select>
+                  {/* Row 2: Location access pills (click to toggle) */}
+                  <div className="ml-12 flex flex-wrap items-center gap-1.5">
+                    <Lock size={11} className="text-slate-400 mr-0.5" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">Access:</span>
+                    {locations.length === 0 ? (
+                      <span className="text-[11px] text-slate-400 italic">No locations exist yet — create one above</span>
+                    ) : (
+                      locations.map(loc => {
+                        const hasAccess = member.access_location_ids.includes(loc.id);
+                        return (
+                          <button
+                            key={loc.id}
+                            onClick={() => handleToggleLocationAccess(member.id, loc.id, hasAccess, member.role)}
+                            className={`text-[11px] font-semibold px-2.5 py-1 rounded-md transition-all ${
+                              hasAccess
+                                ? 'bg-cyan-500 text-white shadow-sm hover:bg-cyan-600'
+                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                            }`}
+                          >
+                            {loc.name}
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               ))}
