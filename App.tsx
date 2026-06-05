@@ -53,10 +53,11 @@ const App: React.FC = () => {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   // DB-driven role: 'owner' | 'manager' | 'chef' | 'viewer'
-  // Owners/Managers can switch locations. Chef/Viewer are locked.
+  // Real security is enforced by RLS at the database layer — users physically
+  // cannot see invoices from locations they don't have access to. The sidebar
+  // dropdown simply filters to show only their accessible locations.
   const [userDbRole, setUserDbRole] = useState<string>('owner');
   const [userLocationId, setUserLocationId] = useState<string | null>(null);
-  const isLocationLocked = userDbRole === 'chef' || userDbRole === 'viewer';
 
   useEffect(() => {
     // Check for existing Supabase session on load
@@ -104,23 +105,37 @@ const App: React.FC = () => {
 
       if (vendorRes.data) setVendors(vendorRes.data as VendorData[]);
 
-      // Build set of accessible location IDs from user_location_access
-      const accessRows = (accessRes.data || []) as { location_id: string; role: string }[];
-      const accessibleIds = new Set(accessRows.map(r => r.location_id));
-
-      // Filter all org locations down to only accessible ones (the silo)
       const allLocs = (locRes.data || []) as LocationData[];
-      const accessibleLocs = allLocs.filter(l => accessibleIds.has(l.id));
-      setLocations(accessibleLocs);
-
-      // Apply user's profile role
       const profile: any = profileRes.data;
       if (profile?.role) setUserDbRole(profile.role);
       if (profile?.location_id) setUserLocationId(profile.location_id);
 
-      // Pick active location:
-      // 1. Try the saved location from localStorage (if user still has access)
-      // 2. Fall back to first accessible location
+      // Build set of accessible location IDs
+      let accessRows = (accessRes.data || []) as { location_id: string; role: string }[];
+      let accessibleIds = new Set(accessRows.map(r => r.location_id));
+
+      // SAFETY NET: If user is an owner and has 0 access entries but their org
+      // already has locations (legacy users), auto-grant access to all of them.
+      // This fixes accounts created before user_location_access existed.
+      if (profile?.role === 'owner' && accessRows.length === 0 && allLocs.length > 0) {
+        const grants = allLocs.map(l => ({
+          user_id: user.id,
+          location_id: l.id,
+          role: 'owner',
+        }));
+        const { error: grantErr } = await supabase
+          .from('user_location_access')
+          .upsert(grants, { onConflict: 'user_id,location_id' });
+        if (!grantErr) {
+          accessibleIds = new Set(allLocs.map(l => l.id));
+        }
+      }
+
+      // Filter org locations to only accessible ones
+      const accessibleLocs = allLocs.filter(l => accessibleIds.has(l.id));
+      setLocations(accessibleLocs);
+
+      // Pick active location: saved → first accessible
       let activeLoc: LocationData | undefined;
       if (savedLoc) activeLoc = accessibleLocs.find(l => l.name === savedLoc);
       if (!activeLoc && accessibleLocs.length > 0) activeLoc = accessibleLocs[0];
@@ -676,50 +691,31 @@ const App: React.FC = () => {
           {/* ── Location Selector ── */}
           <div className="mt-8">
             <div className="flex items-center justify-between px-3 mb-3">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">Location</p>
-              {isLocationLocked && (
-                <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
-                  <LogOut size={9} className="rotate-180" /> Locked
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">Active Location</p>
+              {locations.length > 0 && (
+                <span className="text-[10px] font-medium text-slate-500">
+                  {locations.length} {locations.length === 1 ? 'location' : 'locations'}
                 </span>
               )}
             </div>
-            <div className={`flex items-center rounded-xl px-3 py-2.5 border transition-colors ${
-              isLocationLocked
-                ? 'bg-amber-500/5 border-amber-500/20'
-                : 'bg-white/[0.04] border-white/[0.06] hover:border-white/[0.12]'
-            }`}>
-              <MapPin size={14} className={`mr-2.5 shrink-0 ${isLocationLocked ? 'text-amber-400' : 'text-cyan-400'}`} />
-              {isLocationLocked ? (
-                <div className="text-[13px] font-medium text-slate-300 flex-1 truncate">
-                  {currentLocation}
-                  {(() => {
-                    const loc = locations.find(l => l.name === currentLocation);
-                    return loc?.location_code ? <span className="text-slate-500 ml-1">({loc.location_code})</span> : null;
-                  })()}
-                </div>
+            <div className="flex items-center bg-white/[0.04] rounded-xl px-3 py-2.5 border border-white/[0.06] hover:border-white/[0.12] transition-colors">
+              <MapPin size={14} className="mr-2.5 shrink-0 text-cyan-400" />
+              {locations.length === 0 ? (
+                <span className="text-[13px] font-medium text-slate-500 italic">No locations</span>
               ) : (
                 <select
                   value={currentLocation}
                   onChange={handleLocationChange}
                   className="bg-transparent border-none text-[13px] font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full appearance-none"
                 >
-                  {locations.length === 0 ? (
-                    <option value={currentLocation} className="bg-[#1a202c] text-white">{currentLocation}</option>
-                  ) : (
-                    locations.map(loc => (
-                      <option key={loc.id} value={loc.name} className="bg-[#1a202c] text-white">
-                        {loc.name}{loc.location_code ? ` (${loc.location_code})` : ''}
-                      </option>
-                    ))
-                  )}
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.name} className="bg-[#1a202c] text-white">
+                      {loc.name}{loc.location_code ? ` (${loc.location_code})` : ''}
+                    </option>
+                  ))}
                 </select>
               )}
             </div>
-            {isLocationLocked && (
-              <p className="text-[10px] text-slate-500 mt-1.5 px-3 leading-snug">
-                Your account is restricted to this location.
-              </p>
-            )}
           </div>
         </div>
 
