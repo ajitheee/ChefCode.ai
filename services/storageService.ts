@@ -93,7 +93,9 @@ async function getMyOrgId(): Promise<string | null> {
 }
 
 // ─── Save invoice + items to Supabase ───────────────────────────────
-export const saveInvoiceToHistory = async (data: AnalysisResult) => {
+// locationId (optional): the active location's UUID — required for RLS
+// to allow inserts under the new per-user-per-location access model
+export const saveInvoiceToHistory = async (data: AnalysisResult, locationId?: string | null) => {
   const orgId = await getMyOrgId();
   if (!orgId) throw new Error('No organization found. Please log in again.');
 
@@ -110,6 +112,7 @@ export const saveInvoiceToHistory = async (data: AnalysisResult) => {
         invoice_date: data.invoiceDate || null,
         total_amount: data.totalAmount,
         location: data.location || 'Centerpointe',
+        location_id: locationId || null,
         splits,
         updated_at: new Date().toISOString(),
       })
@@ -143,6 +146,7 @@ export const saveInvoiceToHistory = async (data: AnalysisResult) => {
       .from('invoices')
       .insert({
         org_id: orgId,
+        location_id: locationId || null,
         vendor_name: data.vendorName,
         invoice_number: data.invoiceNumber,
         invoice_date: data.invoiceDate || null,

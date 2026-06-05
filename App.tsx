@@ -17,6 +17,7 @@ interface LocationData {
   id: string;
   name: string;
   location_code: string | null;
+  address_keywords?: string[] | null;
 }
 interface VendorData {
   id: string;
@@ -25,7 +26,7 @@ interface VendorData {
   aliases: string[];
 }
 import { exportInvoiceToCSV } from './utils/csvExport';
-import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X } from 'lucide-react';
+import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, AlertCircle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { motion, AnimatePresence } from 'motion/react';
@@ -51,6 +52,11 @@ const App: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  // DB-driven role: 'owner' | 'manager' | 'chef' | 'viewer'
+  // Owners/Managers can switch locations. Chef/Viewer are locked.
+  const [userDbRole, setUserDbRole] = useState<string>('owner');
+  const [userLocationId, setUserLocationId] = useState<string | null>(null);
+  const isLocationLocked = userDbRole === 'chef' || userDbRole === 'viewer';
 
   useEffect(() => {
     // Check for existing Supabase session on load
@@ -84,20 +90,45 @@ const App: React.FC = () => {
     };
     loadRecent();
 
-    // Load locations + vendors from Supabase
+    // Load locations + vendors + user profile + access list from Supabase
     const loadOrgData = async () => {
-      const [locRes, vendorRes] = await Promise.all([
-        supabase.from('locations').select('id, name, location_code').eq('is_active', true).order('name'),
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [locRes, vendorRes, profileRes, accessRes] = await Promise.all([
+        supabase.from('locations').select('id, name, location_code, address_keywords').eq('is_active', true).order('name'),
         supabase.from('vendors').select('id, canonical_name, account_code, aliases').eq('is_active', true).order('canonical_name'),
+        supabase.from('profiles').select('role, location_id').eq('id', user.id).single(),
+        supabase.from('user_location_access').select('location_id, role').eq('user_id', user.id),
       ]);
-      if (locRes.data) {
-        setLocations(locRes.data as LocationData[]);
-        // If current location isn't in the list, switch to first available
-        if (locRes.data.length > 0 && !locRes.data.some((l: any) => l.name === savedLoc)) {
-          setCurrentLocation(locRes.data[0].name);
-        }
-      }
+
       if (vendorRes.data) setVendors(vendorRes.data as VendorData[]);
+
+      // Build set of accessible location IDs from user_location_access
+      const accessRows = (accessRes.data || []) as { location_id: string; role: string }[];
+      const accessibleIds = new Set(accessRows.map(r => r.location_id));
+
+      // Filter all org locations down to only accessible ones (the silo)
+      const allLocs = (locRes.data || []) as LocationData[];
+      const accessibleLocs = allLocs.filter(l => accessibleIds.has(l.id));
+      setLocations(accessibleLocs);
+
+      // Apply user's profile role
+      const profile: any = profileRes.data;
+      if (profile?.role) setUserDbRole(profile.role);
+      if (profile?.location_id) setUserLocationId(profile.location_id);
+
+      // Pick active location:
+      // 1. Try the saved location from localStorage (if user still has access)
+      // 2. Fall back to first accessible location
+      let activeLoc: LocationData | undefined;
+      if (savedLoc) activeLoc = accessibleLocs.find(l => l.name === savedLoc);
+      if (!activeLoc && accessibleLocs.length > 0) activeLoc = accessibleLocs[0];
+
+      if (activeLoc) {
+        setCurrentLocation(activeLoc.name);
+        localStorage.setItem('chefcode_location', activeLoc.name);
+      }
     };
     loadOrgData();
 
@@ -260,7 +291,9 @@ const App: React.FC = () => {
   const handleSaveAndFinish = async () => {
     if (result) {
       try {
-        await saveInvoiceToHistory(result);
+        // Look up active location's UUID for proper RLS filtering
+        const activeLoc = locations.find(l => l.name === currentLocation);
+        await saveInvoiceToHistory(result, activeLoc?.id || null);
         setIsSaved(true);
       } catch (err: any) {
         console.error('Failed to save invoice:', err);
@@ -494,11 +527,34 @@ const App: React.FC = () => {
     }
   };
 
-  const isValidAddress = result?.deliveryAddress ? (
-    result.deliveryAddress.toUpperCase().includes("CENTERPOINTE") || 
-    result.deliveryAddress.toUpperCase().includes("3801 W TEMPLE") || 
-    result.deliveryAddress.toUpperCase().includes("3801 WEST TEMPLE")
-  ) : false;
+  // Dynamic address verification using locations.address_keywords from DB
+  // Returns:
+  //   'verified'        → invoice address matches current location's keywords
+  //   'wrong-location'  → invoice address matches a DIFFERENT location (cross-location warning)
+  //   'unverified'      → no match found anywhere, but address was detected
+  //   'no-address'      → no delivery address extracted from invoice
+  const addressVerification = (() => {
+    if (!result?.deliveryAddress) return { status: 'no-address' as const, matchedLocation: null };
+    const addrLower = result.deliveryAddress.toLowerCase();
+
+    const findMatch = (loc: LocationData) => {
+      const kws = loc.address_keywords || [];
+      return kws.some(kw => kw && addrLower.includes(kw.toLowerCase()));
+    };
+
+    const currentLoc = locations.find(l => l.name === currentLocation);
+    if (currentLoc && findMatch(currentLoc)) {
+      return { status: 'verified' as const, matchedLocation: currentLoc };
+    }
+    // Check OTHER locations for cross-location warning
+    const otherMatched = locations.find(l => l.name !== currentLocation && findMatch(l));
+    if (otherMatched) {
+      return { status: 'wrong-location' as const, matchedLocation: otherMatched };
+    }
+    return { status: 'unverified' as const, matchedLocation: null };
+  })();
+
+  const isValidAddress = addressVerification.status === 'verified';
 
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
@@ -619,25 +675,51 @@ const App: React.FC = () => {
 
           {/* ── Location Selector ── */}
           <div className="mt-8">
-            <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3">Location</p>
-            <div className="flex items-center bg-white/[0.04] rounded-xl px-3 py-2.5 border border-white/[0.06] hover:border-white/[0.12] transition-colors">
-              <MapPin size={14} className="text-cyan-400 mr-2.5 shrink-0" />
-              <select
-                value={currentLocation}
-                onChange={handleLocationChange}
-                className="bg-transparent border-none text-[13px] font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full appearance-none"
-              >
-                {locations.length === 0 ? (
-                  <option value={currentLocation} className="bg-[#1a202c] text-white">{currentLocation}</option>
-                ) : (
-                  locations.map(loc => (
-                    <option key={loc.id} value={loc.name} className="bg-[#1a202c] text-white">
-                      {loc.name}{loc.location_code ? ` (${loc.location_code})` : ''}
-                    </option>
-                  ))
-                )}
-              </select>
+            <div className="flex items-center justify-between px-3 mb-3">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">Location</p>
+              {isLocationLocked && (
+                <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                  <LogOut size={9} className="rotate-180" /> Locked
+                </span>
+              )}
             </div>
+            <div className={`flex items-center rounded-xl px-3 py-2.5 border transition-colors ${
+              isLocationLocked
+                ? 'bg-amber-500/5 border-amber-500/20'
+                : 'bg-white/[0.04] border-white/[0.06] hover:border-white/[0.12]'
+            }`}>
+              <MapPin size={14} className={`mr-2.5 shrink-0 ${isLocationLocked ? 'text-amber-400' : 'text-cyan-400'}`} />
+              {isLocationLocked ? (
+                <div className="text-[13px] font-medium text-slate-300 flex-1 truncate">
+                  {currentLocation}
+                  {(() => {
+                    const loc = locations.find(l => l.name === currentLocation);
+                    return loc?.location_code ? <span className="text-slate-500 ml-1">({loc.location_code})</span> : null;
+                  })()}
+                </div>
+              ) : (
+                <select
+                  value={currentLocation}
+                  onChange={handleLocationChange}
+                  className="bg-transparent border-none text-[13px] font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full appearance-none"
+                >
+                  {locations.length === 0 ? (
+                    <option value={currentLocation} className="bg-[#1a202c] text-white">{currentLocation}</option>
+                  ) : (
+                    locations.map(loc => (
+                      <option key={loc.id} value={loc.name} className="bg-[#1a202c] text-white">
+                        {loc.name}{loc.location_code ? ` (${loc.location_code})` : ''}
+                      </option>
+                    ))
+                  )}
+                </select>
+              )}
+            </div>
+            {isLocationLocked && (
+              <p className="text-[10px] text-slate-500 mt-1.5 px-3 leading-snug">
+                Your account is restricted to this location.
+              </p>
+            )}
           </div>
         </div>
 
@@ -804,6 +886,39 @@ const App: React.FC = () => {
                </div>
             ) : status === 'idle' || status === 'uploading' || status === 'analyzing' || status === 'error' ? (
           <div className="max-w-4xl mx-auto mt-6">
+            {/* ── No-Access Banner ── */}
+            {locations.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4"
+              >
+                <div className="p-2.5 bg-amber-100 rounded-xl shrink-0">
+                  <MapPin className="text-amber-600" size={22} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-amber-900">No Location Access</h3>
+                  <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+                    You don't have access to any locations yet.{' '}
+                    {userDbRole === 'owner' ? (
+                      <>Go to <strong>Admin Panel → Locations</strong> to create your first location.</>
+                    ) : (
+                      <>Ask your organization owner to grant you access to a location.</>
+                    )}
+                  </p>
+                  {userDbRole === 'owner' && (
+                    <button
+                      onClick={() => setActiveTab('admin')}
+                      className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                    >
+                      <Database size={14} />
+                      Go to Admin Panel
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             {/* ── Hero Header ── */}
             <div className="text-center mb-10">
               <div className="inline-flex items-center gap-2 bg-cyan-50 border border-cyan-200/60 rounded-full px-4 py-1.5 mb-4">
@@ -973,22 +1088,36 @@ const App: React.FC = () => {
 
                  {/* ── Invoice Details Card ── */}
                  <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden shadow-sm">
-                   {/* Address Verification Banner */}
-                   <div className={`px-5 py-3 border-b flex items-center gap-2.5 ${isValidAddress ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50/60 border-rose-100'}`}>
-                      {isValidAddress ? (
-                         <CheckCircle className="text-emerald-500 shrink-0" size={16} />
-                      ) : (
-                         <AlertTriangle className="text-rose-500 shrink-0" size={16} />
-                      )}
-                      <div className="flex-1 min-w-0">
-                         <span className={`text-xs font-semibold ${isValidAddress ? 'text-emerald-800' : 'text-rose-800'}`}>
-                             {isValidAddress ? 'Address Verified' : 'Address Mismatch'}
-                         </span>
-                         <span className={`text-xs ml-2 ${isValidAddress ? 'text-emerald-600' : 'text-rose-600'}`}>
-                             {result.deliveryAddress || "Not detected"}
-                         </span>
-                      </div>
-                   </div>
+                   {/* Address Verification Banner — dynamic, DB-driven */}
+                   {(() => {
+                     const av = addressVerification;
+                     // Colors per status
+                     const styles = {
+                       'verified':       { bg: 'bg-emerald-50/60 border-emerald-100', icon: <CheckCircle className="text-emerald-500 shrink-0" size={16} />, title: 'text-emerald-800', titleText: 'Address Verified', sub: 'text-emerald-600' },
+                       'wrong-location': { bg: 'bg-red-50/70 border-red-200',         icon: <AlertTriangle className="text-red-500 shrink-0" size={16} />,   title: 'text-red-800',    titleText: 'Wrong Location!',  sub: 'text-red-600' },
+                       'unverified':     { bg: 'bg-amber-50/60 border-amber-100',     icon: <AlertTriangle className="text-amber-500 shrink-0" size={16} />, title: 'text-amber-800',  titleText: 'Address Not Verified', sub: 'text-amber-600' },
+                       'no-address':     { bg: 'bg-slate-50/60 border-slate-100',     icon: <AlertCircle className="text-slate-400 shrink-0" size={16} />,   title: 'text-slate-700',  titleText: 'No Address Detected', sub: 'text-slate-500' },
+                     } as const;
+                     const s = styles[av.status];
+                     return (
+                       <div className={`px-5 py-3 border-b flex items-center gap-2.5 ${s.bg}`}>
+                         {s.icon}
+                         <div className="flex-1 min-w-0">
+                           <span className={`text-xs font-semibold ${s.title}`}>{s.titleText}</span>
+                           {av.status === 'wrong-location' && av.matchedLocation && (
+                             <span className="text-xs ml-2 text-red-700 font-semibold">
+                               Looks like <span className="font-bold underline">{av.matchedLocation.name}</span>, but you're at <span className="font-bold">{currentLocation}</span>
+                             </span>
+                           )}
+                           {av.status !== 'wrong-location' && (
+                             <span className={`text-xs ml-2 ${s.sub}`}>
+                               {result.deliveryAddress || "Not detected on invoice"}
+                             </span>
+                           )}
+                         </div>
+                       </div>
+                     );
+                   })()}
 
                    {/* Vendor Code + Location Code Banner */}
                    {(() => {
