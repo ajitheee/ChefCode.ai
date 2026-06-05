@@ -38,7 +38,13 @@ export const AdminPanel: React.FC = () => {
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [vendors, setVendors] = useState<VendorRow[]>([]);
   const [team, setTeam] = useState<TeamMemberRow[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [activeSection, setActiveSection] = useState<'products' | 'locations' | 'vendors' | 'team'>('locations');
+
+  // Invite form
+  const [inviteForm, setInviteForm] = useState({ email: '', role: 'chef', location_id: '' });
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Add/edit forms
   const [newLocation, setNewLocation] = useState({ name: '', location_code: '', address: '' });
@@ -54,6 +60,7 @@ export const AdminPanel: React.FC = () => {
     loadLocations();
     loadVendors();
     loadTeam();
+    loadPendingInvites();
   }, []);
 
   const loadLocations = async () => {
@@ -167,6 +174,76 @@ export const AdminPanel: React.FC = () => {
   const handleUpdateTeamRole = async (userId: string, role: string) => {
     await supabase.from('profiles').update({ role }).eq('id', userId);
     await loadTeam();
+  };
+
+  // ─── Invitations ─────────────────────────────────────────────
+  const loadPendingInvites = async () => {
+    const { data } = await supabase
+      .from('invitations')
+      .select('id, email, role, location_id, status, created_at, expires_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    setPendingInvites(data || []);
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteForm.email.trim()) {
+      setInviteMsg({ type: 'error', text: 'Email is required.' });
+      return;
+    }
+
+    setInviteLoading(true);
+    setInviteMsg(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated.');
+      const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single();
+      if (!profile?.org_id) throw new Error('No organization found.');
+
+      // 1. Create invitation record (the DB trigger will use this when invitee signs up)
+      const { error: invErr } = await supabase
+        .from('invitations')
+        .upsert({
+          org_id: profile.org_id,
+          email: inviteForm.email.toLowerCase().trim(),
+          role: inviteForm.role,
+          location_id: inviteForm.location_id || null,
+          invited_by: user.id,
+          status: 'pending',
+        }, { onConflict: 'org_id,email' });
+
+      if (invErr) throw invErr;
+
+      // 2. Try sending verification email via Edge Function (if deployed)
+      let emailSent = false;
+      try {
+        const { data: fnRes, error: fnErr } = await supabase.functions.invoke('invite-user', {
+          body: { email: inviteForm.email.toLowerCase().trim() },
+        });
+        if (!fnErr && fnRes?.ok) emailSent = true;
+      } catch {
+        // Edge function not deployed — that's OK, fallback to manual instructions
+      }
+
+      setInviteMsg({
+        type: 'success',
+        text: emailSent
+          ? `Invitation email sent to ${inviteForm.email}. They'll get a link to set their password and join.`
+          : `Invitation saved for ${inviteForm.email}. Ask them to sign up at chefcode.cc/app with this email — they'll be auto-added to your org.`,
+      });
+      setInviteForm({ email: '', role: 'chef', location_id: '' });
+      await loadPendingInvites();
+    } catch (e: any) {
+      setInviteMsg({ type: 'error', text: e.message || 'Failed to send invitation.' });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleCancelInvite = async (id: string) => {
+    await supabase.from('invitations').delete().eq('id', id);
+    await loadPendingInvites();
   };
 
   // Toggle a single location's access for a user
@@ -514,10 +591,94 @@ export const AdminPanel: React.FC = () => {
           ═══════════════════════════════════════════════ */}
       {activeSection === 'team' && (
         <div className="space-y-4">
+
+          {/* ── Invite User Form ── */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-cyan-50 to-blue-50">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Users size={14} className="text-cyan-600" /> Invite a Team Member
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">Enter their email, role, and location. They'll get a verification link to set their password.</p>
+            </div>
+
+            <div className="p-5 grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-2">
+              <input
+                type="email"
+                value={inviteForm.email}
+                onChange={(e) => { setInviteForm({ ...inviteForm, email: e.target.value }); setInviteMsg(null); }}
+                placeholder="user@company.com"
+                className="text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-cyan-400 focus:border-cyan-400"
+              />
+              <select
+                value={inviteForm.role}
+                onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                className="text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-cyan-400 focus:border-cyan-400 cursor-pointer"
+              >
+                <option value="chef">Chef</option>
+                <option value="manager">Manager</option>
+                <option value="viewer">Viewer</option>
+                <option value="owner">Owner</option>
+              </select>
+              <select
+                value={inviteForm.location_id}
+                onChange={(e) => setInviteForm({ ...inviteForm, location_id: e.target.value })}
+                className="text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-cyan-400 focus:border-cyan-400 cursor-pointer min-w-[150px]"
+              >
+                <option value="">— Select location —</option>
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleSendInvite}
+                disabled={inviteLoading || !inviteForm.email.trim()}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-cyan-600 text-white text-sm font-semibold rounded-lg hover:bg-cyan-700 disabled:opacity-50 transition-colors shadow-sm"
+              >
+                {inviteLoading ? '...' : <><Plus size={14} /> Send Invite</>}
+              </button>
+            </div>
+
+            {/* Success / error message */}
+            {inviteMsg && (
+              <div className={`mx-5 mb-5 p-3 rounded-lg text-sm border ${
+                inviteMsg.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-red-50 border-red-200 text-red-800'
+              }`}>
+                {inviteMsg.text}
+              </div>
+            )}
+
+            {/* Pending Invitations */}
+            {pendingInvites.length > 0 && (
+              <div className="px-5 pb-5">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Pending Invitations ({pendingInvites.length})</p>
+                <div className="space-y-1.5">
+                  {pendingInvites.map(inv => (
+                    <div key={inv.id} className="flex items-center justify-between gap-2 px-3 py-2 bg-amber-50/50 border border-amber-100 rounded-lg">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md uppercase">Pending</span>
+                        <span className="text-sm font-medium text-slate-700 truncate">{inv.email}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{inv.role}</span>
+                      </div>
+                      <button
+                        onClick={() => handleCancelInvite(inv.id)}
+                        className="text-[11px] font-semibold text-slate-500 hover:text-red-600 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Team Members List ── */}
           <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Team Members</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Assign roles and locations. Chef/Viewer are locked to their location.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Click location pills to grant or revoke access. Each user sees only their accessible locations.</p>
             </div>
 
             <div className="divide-y divide-slate-100">

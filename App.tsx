@@ -25,8 +25,18 @@ interface VendorData {
   account_code: string | null;
   aliases: string[];
 }
+interface OrgData {
+  id: string;
+  name: string;
+  plan: string;
+  is_trial: boolean;
+  trial_ends_at: string | null;
+  max_locations: number;
+  max_users: number;
+  max_invoices_per_month: number;
+}
 import { exportInvoiceToCSV } from './utils/csvExport';
-import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, AlertCircle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X } from 'lucide-react';
+import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, AlertCircle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X, Sparkles, Lock as LockIcon } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { motion, AnimatePresence } from 'motion/react';
@@ -53,10 +63,12 @@ const App: React.FC = () => {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   // DB-driven role: 'owner' | 'manager' | 'chef' | 'viewer'
-  // Owners/Managers can switch locations. Chef/Viewer are locked.
+  // Real security is enforced by RLS at the database layer — users physically
+  // cannot see invoices from locations they don't have access to. The sidebar
+  // dropdown simply filters to show only their accessible locations.
   const [userDbRole, setUserDbRole] = useState<string>('owner');
   const [userLocationId, setUserLocationId] = useState<string | null>(null);
-  const isLocationLocked = userDbRole === 'chef' || userDbRole === 'viewer';
+  const [org, setOrg] = useState<OrgData | null>(null);
 
   useEffect(() => {
     // Check for existing Supabase session on load
@@ -98,29 +110,54 @@ const App: React.FC = () => {
       const [locRes, vendorRes, profileRes, accessRes] = await Promise.all([
         supabase.from('locations').select('id, name, location_code, address_keywords').eq('is_active', true).order('name'),
         supabase.from('vendors').select('id, canonical_name, account_code, aliases').eq('is_active', true).order('canonical_name'),
-        supabase.from('profiles').select('role, location_id').eq('id', user.id).single(),
+        supabase.from('profiles').select('role, location_id, org_id').eq('id', user.id).single(),
         supabase.from('user_location_access').select('location_id, role').eq('user_id', user.id),
       ]);
 
+      // Load the org data (for trial banner + limits)
+      const profileData: any = profileRes.data;
+      if (profileData?.org_id) {
+        const { data: orgRow } = await supabase
+          .from('organizations')
+          .select('id, name, plan, is_trial, trial_ends_at, max_locations, max_users, max_invoices_per_month')
+          .eq('id', profileData.org_id)
+          .single();
+        if (orgRow) setOrg(orgRow as OrgData);
+      }
+
       if (vendorRes.data) setVendors(vendorRes.data as VendorData[]);
 
-      // Build set of accessible location IDs from user_location_access
-      const accessRows = (accessRes.data || []) as { location_id: string; role: string }[];
-      const accessibleIds = new Set(accessRows.map(r => r.location_id));
-
-      // Filter all org locations down to only accessible ones (the silo)
       const allLocs = (locRes.data || []) as LocationData[];
-      const accessibleLocs = allLocs.filter(l => accessibleIds.has(l.id));
-      setLocations(accessibleLocs);
-
-      // Apply user's profile role
       const profile: any = profileRes.data;
       if (profile?.role) setUserDbRole(profile.role);
       if (profile?.location_id) setUserLocationId(profile.location_id);
 
-      // Pick active location:
-      // 1. Try the saved location from localStorage (if user still has access)
-      // 2. Fall back to first accessible location
+      // Build set of accessible location IDs
+      let accessRows = (accessRes.data || []) as { location_id: string; role: string }[];
+      let accessibleIds = new Set(accessRows.map(r => r.location_id));
+
+      // SAFETY NET: If user is an owner and has 0 access entries but their org
+      // already has locations (legacy users), auto-grant access to all of them.
+      // This fixes accounts created before user_location_access existed.
+      if (profile?.role === 'owner' && accessRows.length === 0 && allLocs.length > 0) {
+        const grants = allLocs.map(l => ({
+          user_id: user.id,
+          location_id: l.id,
+          role: 'owner',
+        }));
+        const { error: grantErr } = await supabase
+          .from('user_location_access')
+          .upsert(grants, { onConflict: 'user_id,location_id' });
+        if (!grantErr) {
+          accessibleIds = new Set(allLocs.map(l => l.id));
+        }
+      }
+
+      // Filter org locations to only accessible ones
+      const accessibleLocs = allLocs.filter(l => accessibleIds.has(l.id));
+      setLocations(accessibleLocs);
+
+      // Pick active location: saved → first accessible
       let activeLoc: LocationData | undefined;
       if (savedLoc) activeLoc = accessibleLocs.find(l => l.name === savedLoc);
       if (!activeLoc && accessibleLocs.length > 0) activeLoc = accessibleLocs[0];
@@ -289,6 +326,10 @@ const App: React.FC = () => {
   };
 
   const handleSaveAndFinish = async () => {
+    if (isReadOnly) {
+      setErrorMsg('Your trial has expired. Please upgrade to save invoices.');
+      return;
+    }
     if (result) {
       try {
         // Look up active location's UUID for proper RLS filtering
@@ -556,6 +597,20 @@ const App: React.FC = () => {
 
   const isValidAddress = addressVerification.status === 'verified';
 
+  // ── Trial Status (drives banner + read-only mode) ──
+  const trialStatus = (() => {
+    if (!org) return { status: 'unknown' as const, daysLeft: null as number | null };
+    if (!org.is_trial) return { status: 'paid' as const, daysLeft: null };
+    if (!org.trial_ends_at) return { status: 'unknown' as const, daysLeft: null };
+    const end = new Date(org.trial_ends_at).getTime();
+    const now = Date.now();
+    const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 0) return { status: 'expired' as const, daysLeft: 0 };
+    if (daysLeft <= 3) return { status: 'ending-soon' as const, daysLeft };
+    return { status: 'active' as const, daysLeft };
+  })();
+  const isReadOnly = trialStatus.status === 'expired';
+
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
@@ -676,50 +731,31 @@ const App: React.FC = () => {
           {/* ── Location Selector ── */}
           <div className="mt-8">
             <div className="flex items-center justify-between px-3 mb-3">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">Location</p>
-              {isLocationLocked && (
-                <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
-                  <LogOut size={9} className="rotate-180" /> Locked
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">Active Location</p>
+              {locations.length > 0 && (
+                <span className="text-[10px] font-medium text-slate-500">
+                  {locations.length} {locations.length === 1 ? 'location' : 'locations'}
                 </span>
               )}
             </div>
-            <div className={`flex items-center rounded-xl px-3 py-2.5 border transition-colors ${
-              isLocationLocked
-                ? 'bg-amber-500/5 border-amber-500/20'
-                : 'bg-white/[0.04] border-white/[0.06] hover:border-white/[0.12]'
-            }`}>
-              <MapPin size={14} className={`mr-2.5 shrink-0 ${isLocationLocked ? 'text-amber-400' : 'text-cyan-400'}`} />
-              {isLocationLocked ? (
-                <div className="text-[13px] font-medium text-slate-300 flex-1 truncate">
-                  {currentLocation}
-                  {(() => {
-                    const loc = locations.find(l => l.name === currentLocation);
-                    return loc?.location_code ? <span className="text-slate-500 ml-1">({loc.location_code})</span> : null;
-                  })()}
-                </div>
+            <div className="flex items-center bg-white/[0.04] rounded-xl px-3 py-2.5 border border-white/[0.06] hover:border-white/[0.12] transition-colors">
+              <MapPin size={14} className="mr-2.5 shrink-0 text-cyan-400" />
+              {locations.length === 0 ? (
+                <span className="text-[13px] font-medium text-slate-500 italic">No locations</span>
               ) : (
                 <select
                   value={currentLocation}
                   onChange={handleLocationChange}
                   className="bg-transparent border-none text-[13px] font-medium text-slate-300 focus:ring-0 p-0 cursor-pointer w-full appearance-none"
                 >
-                  {locations.length === 0 ? (
-                    <option value={currentLocation} className="bg-[#1a202c] text-white">{currentLocation}</option>
-                  ) : (
-                    locations.map(loc => (
-                      <option key={loc.id} value={loc.name} className="bg-[#1a202c] text-white">
-                        {loc.name}{loc.location_code ? ` (${loc.location_code})` : ''}
-                      </option>
-                    ))
-                  )}
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.name} className="bg-[#1a202c] text-white">
+                      {loc.name}{loc.location_code ? ` (${loc.location_code})` : ''}
+                    </option>
+                  ))}
                 </select>
               )}
             </div>
-            {isLocationLocked && (
-              <p className="text-[10px] text-slate-500 mt-1.5 px-3 leading-snug">
-                Your account is restricted to this location.
-              </p>
-            )}
           </div>
         </div>
 
@@ -754,6 +790,36 @@ const App: React.FC = () => {
           MAIN CONTENT WRAPPER
           ═══════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+        {/* ── Trial Banner ── */}
+        {org && org.is_trial && trialStatus.status !== 'unknown' && (
+          <div className={`flex-shrink-0 px-4 sm:px-6 lg:px-8 py-2 text-xs font-medium flex items-center justify-between gap-3 ${
+            trialStatus.status === 'expired'
+              ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white'
+              : trialStatus.status === 'ending-soon'
+                ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white'
+                : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-b border-cyan-200 text-cyan-900'
+          }`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles size={13} className={trialStatus.status === 'active' ? 'text-cyan-600' : 'text-white'} />
+              <span className="truncate">
+                {trialStatus.status === 'expired' ? (
+                  <><strong>Trial expired.</strong> Your account is read-only. Upgrade to continue using ChefCode.</>
+                ) : trialStatus.status === 'ending-soon' ? (
+                  <><strong>Trial ending soon —</strong> only {trialStatus.daysLeft} day{trialStatus.daysLeft !== 1 ? 's' : ''} left on your {org.plan.charAt(0).toUpperCase() + org.plan.slice(1)} plan.</>
+                ) : (
+                  <><strong>Free trial active</strong> — {trialStatus.daysLeft} days left on your {org.plan.charAt(0).toUpperCase() + org.plan.slice(1)} plan.</>
+                )}
+              </span>
+            </div>
+            <a
+              href="mailto:sales@chefcode.ai?subject=Upgrade%20to%20Paid%20Plan"
+              className={`whitespace-nowrap font-bold underline hover:no-underline ${trialStatus.status === 'active' ? 'text-cyan-700' : 'text-white'}`}
+            >
+              Upgrade →
+            </a>
+          </div>
+        )}
 
         {/* ── Top Header Bar ── */}
         <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/80 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 flex-shrink-0 sticky top-0 z-30">

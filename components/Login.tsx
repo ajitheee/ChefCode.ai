@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ChefHat, Lock, User, Mail, CheckCircle2, Loader2, ArrowLeft, UserPlus } from 'lucide-react';
+import { ChefHat, Lock, User, Mail, CheckCircle2, Loader2, ArrowLeft, UserPlus, Building2, Sparkles, Zap } from 'lucide-react';
 import { UserRole } from '../types';
-import { signIn, signUp, getUserRole } from '../services/authService';
+import { signIn, signUp, getUserRole, Plan } from '../services/authService';
 
 interface LoginProps {
   onLogin: (role: UserRole) => void;
@@ -14,6 +14,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [tenantName, setTenantName] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<Plan>('starter');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
@@ -40,7 +42,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      await signUp(email, password, fullName, 'admin');
+      await signUp(email, password, fullName, tenantName, selectedPlan);
       setSignupSuccess(true);
     } catch (err: any) {
       setError(err.message || 'Sign up failed. Please try again.');
@@ -188,19 +190,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 Back to sign in
               </button>
 
-              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Create account</h2>
-              <p className="mt-2 text-sm text-slate-600 mb-8">
-                Set up your ChefCode.ai account to get started.
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Start your free trial</h2>
+              <p className="mt-2 text-sm text-slate-600 mb-6">
+                <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  <Sparkles size={11} /> 15 days free
+                </span>
+                <span className="ml-2">No credit card required.</span>
               </p>
 
-              <form className="space-y-5" onSubmit={handleSignUp}>
+              <form className="space-y-4" onSubmit={handleSignUp}>
+                {/* Full Name */}
                 <div>
-                  <label htmlFor="fullname" className="block text-sm font-medium text-slate-700 mb-1">
-                    Full Name
+                  <label htmlFor="fullname" className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                    Your Name
                   </label>
-                  <div className="relative rounded-md shadow-sm">
+                  <div className="relative rounded-lg shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-5 w-5 text-slate-400" />
+                      <User className="h-4 w-4 text-slate-400" />
                     </div>
                     <input
                       id="fullname"
@@ -208,50 +214,131 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
+                      className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
                       placeholder="John Smith"
                     />
                   </div>
                 </div>
 
+                {/* Organization / Tenant Name */}
                 <div>
-                  <label htmlFor="signup-email" className="block text-sm font-medium text-slate-700 mb-1">
-                    Email
+                  <label htmlFor="tenant" className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                    Organization Name
                   </label>
-                  <div className="relative rounded-md shadow-sm">
+                  <div className="relative rounded-lg shadow-sm">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-slate-400" />
+                      <Building2 className="h-4 w-4 text-slate-400" />
                     </div>
                     <input
-                      id="signup-email"
-                      type="email"
+                      id="tenant"
+                      type="text"
                       required
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                      className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
-                      placeholder="you@company.com"
+                      value={tenantName}
+                      onChange={(e) => setTenantName(e.target.value)}
+                      className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
+                      placeholder="Cal Poly Pomona Dining"
                     />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 ml-1">Your tenant name. You'll be the owner.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="signup-email" className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                      Email
+                    </label>
+                    <div className="relative rounded-lg shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Mail className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <input
+                        id="signup-email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                        className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
+                        placeholder="you@company.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="signup-password" className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                      Password
+                    </label>
+                    <div className="relative rounded-lg shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <input
+                        id="signup-password"
+                        type="password"
+                        required
+                        minLength={6}
+                        value={password}
+                        onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                        className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
+                        placeholder="6+ chars"
+                      />
+                    </div>
                   </div>
                 </div>
 
+                {/* Plan selector */}
                 <div>
-                  <label htmlFor="signup-password" className="block text-sm font-medium text-slate-700 mb-1">
-                    Password
+                  <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider">
+                    Choose Your Plan
                   </label>
-                  <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-400" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlan('starter')}
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${
+                        selectedPlan === 'starter'
+                          ? 'border-cyan-500 bg-cyan-50/50 shadow-sm'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-bold text-slate-900">Starter</span>
+                        {selectedPlan === 'starter' && <CheckCircle2 size={14} className="text-cyan-600" />}
+                      </div>
+                      <p className="text-xs text-slate-500">$99/mo</p>
+                      <p className="text-[10px] text-slate-400 mt-1">1 location · 3 users · 200/mo</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlan('professional')}
+                      className={`p-3 rounded-xl border-2 text-left transition-all relative ${
+                        selectedPlan === 'professional'
+                          ? 'border-cyan-500 bg-cyan-50/50 shadow-sm'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="absolute -top-1.5 right-1.5 text-[8px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-md uppercase tracking-wider">Popular</span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-bold text-slate-900">Professional</span>
+                        {selectedPlan === 'professional' && <CheckCircle2 size={14} className="text-cyan-600" />}
+                      </div>
+                      <p className="text-xs text-slate-500">$299/mo</p>
+                      <p className="text-[10px] text-slate-400 mt-1">5 locations · 15 users · 1k/mo</p>
+                    </button>
+                  </div>
+
+                  {/* Enterprise CTA */}
+                  <div className="mt-2 flex items-center justify-between bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-lg p-2.5">
+                    <div className="flex items-center gap-2">
+                      <Zap size={14} className="text-violet-600" />
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">Need Enterprise?</p>
+                        <p className="text-[10px] text-slate-500">Unlimited locations + SSO + EDI</p>
+                      </div>
                     </div>
-                    <input
-                      id="signup-password"
-                      type="password"
-                      required
-                      minLength={6}
-                      value={password}
-                      onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                      className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
-                      placeholder="Minimum 6 characters"
-                    />
+                    <a href="mailto:sales@chefcode.ai?subject=Enterprise%20Demo%20Request" className="text-[11px] font-bold text-violet-700 hover:text-violet-900 underline">
+                      Book a Demo →
+                    </a>
                   </div>
                 </div>
 
@@ -263,11 +350,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors disabled:opacity-50"
+                  disabled={loading || !fullName.trim() || !tenantName.trim()}
+                  className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-all disabled:opacity-50"
                 >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {loading ? 'Creating account...' : 'Create Account'}
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles size={14} />}
+                  {loading ? 'Creating account...' : 'Start 15-Day Free Trial'}
                 </button>
               </form>
             </div>
