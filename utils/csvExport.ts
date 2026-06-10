@@ -1,4 +1,4 @@
-import { SavedInvoice, InvoiceItem } from './types';
+import { SavedInvoice, InvoiceItem } from '../types';
 
 export const exportInvoiceToCSV = (invoice: SavedInvoice) => {
   if (!invoice.items || invoice.items.length === 0) {

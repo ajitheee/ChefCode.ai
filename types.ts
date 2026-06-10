@@ -39,6 +39,7 @@ export interface AnalysisResult {
   invoiceDate: string;
   invoiceNumber: string;
   deliveryAddress?: string; // New field for address verification
+  matchedLocation?: string; // AI-matched registered location name ('' if none)
   items: InvoiceItem[];
   totalAmount: number;
   location?: string; // Multi-location support
