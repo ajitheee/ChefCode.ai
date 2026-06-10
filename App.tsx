@@ -109,6 +109,22 @@ const App: React.FC = () => {
     const savedLoc = localStorage.getItem('chefcode_location');
     if (savedLoc) setCurrentLocation(savedLoc);
 
+    return () => { subscription.unsubscribe(); };
+  }, []);
+
+  // Load org-scoped data whenever the user signs in, and clear it on sign-out.
+  // This previously ran only on page load — signing in through the Login screen
+  // left locations/vendors empty until a full refresh, which is why the Active
+  // Location sometimes didn't populate.
+  useEffect(() => {
+    if (!currentUser) {
+      setLocations([]);
+      setVendors([]);
+      setOrg(null);
+      setRecentInvoices([]);
+      return;
+    }
+
     const loadRecent = async () => {
       const invoices = await getSavedInvoices();
       setRecentInvoices(invoices.slice(0, 5));
@@ -119,6 +135,7 @@ const App: React.FC = () => {
     const loadOrgData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      const savedLoc = localStorage.getItem('chefcode_location');
 
       const [locRes, vendorRes, profileRes, accessRes] = await Promise.all([
         supabase.from('locations').select('id, name, location_code, address, address_keywords').eq('is_active', true).order('name'),
@@ -181,9 +198,7 @@ const App: React.FC = () => {
       }
     };
     loadOrgData();
-
-    return () => { subscription.unsubscribe(); };
-  }, []);
+  }, [currentUser]);
 
   const handleLogin = (role: UserRole) => {
     setCurrentUser(role);
