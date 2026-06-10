@@ -119,6 +119,15 @@ const getMonthYear = (dateStr: string) => {
   return '';
 };
 
+// Format a "YYYY-MM" key as "June 2026". Must build the Date from numeric
+// parts — new Date("YYYY-MM-DD") parses as UTC midnight, which rolls back
+// to the previous month when displayed in timezones behind UTC.
+const formatMonthLabel = (monthKey: string) => {
+  const [y, m] = monthKey.split('-').map(Number);
+  if (!y || !m) return monthKey;
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
 const getDay = (dateStr: string) => {
   if (!dateStr) return 1;
   
@@ -501,7 +510,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
               ) : (
                 availableMonths.map(m => (
                   <option key={m} value={m}>
-                    {new Date(m + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    {formatMonthLabel(m)}
                   </option>
                 ))
               )}
@@ -841,7 +850,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
               <div>
                 <h3 className="text-xl font-bold text-slate-900">{selectedVendor}</h3>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  {selectedMonth ? new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'All time'} spending details
+                  {selectedMonth ? formatMonthLabel(selectedMonth) : 'All time'} spending details
                 </p>
               </div>
               <div className="text-right">

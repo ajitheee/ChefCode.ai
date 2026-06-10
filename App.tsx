@@ -17,6 +17,7 @@ interface LocationData {
   id: string;
   name: string;
   location_code: string | null;
+  address?: string | null;
   address_keywords?: string[] | null;
 }
 interface VendorData {
@@ -120,7 +121,7 @@ const App: React.FC = () => {
       if (!user) return;
 
       const [locRes, vendorRes, profileRes, accessRes] = await Promise.all([
-        supabase.from('locations').select('id, name, location_code, address_keywords').eq('is_active', true).order('name'),
+        supabase.from('locations').select('id, name, location_code, address, address_keywords').eq('is_active', true).order('name'),
         supabase.from('vendors').select('id, canonical_name, account_code, aliases').eq('is_active', true).order('canonical_name'),
         supabase.from('profiles').select('role, location_id, org_id').eq('id', user.id).single(),
         supabase.from('user_location_access').select('location_id, role').eq('user_id', user.id),
@@ -229,7 +230,11 @@ const App: React.FC = () => {
       const { base64, mimeType } = await processFile(file);
       setPreviewImage(`data:${mimeType};base64,${base64}`);
       setStatus('analyzing');
-      const data = await analyzeInvoiceImage(base64, mimeType);
+      const data = await analyzeInvoiceImage(
+        base64,
+        mimeType,
+        locations.map(l => ({ name: l.name, address: l.address, keywords: l.address_keywords }))
+      );
       
       data.location = currentLocation;
 
@@ -580,9 +585,13 @@ const App: React.FC = () => {
     }
   };
 
-  // Dynamic address verification using locations.address_keywords from DB
+  // Address verification — AI match first, keyword fallback.
+  // The AI compares the invoice's Ship To address against the org's registered
+  // locations (name + address) during analysis; result.matchedLocation holds the
+  // matched location name or ''. Keyword matching remains as a fallback for
+  // locations with manually curated address_keywords.
   // Returns:
-  //   'verified'        → invoice address matches current location's keywords
+  //   'verified'        → invoice address matches the CURRENT location
   //   'wrong-location'  → invoice address matches a DIFFERENT location (cross-location warning)
   //   'unverified'      → no match found anywhere, but address was detected
   //   'no-address'      → no delivery address extracted from invoice
@@ -590,6 +599,17 @@ const App: React.FC = () => {
     if (!result?.deliveryAddress) return { status: 'no-address' as const, matchedLocation: null };
     const addrLower = result.deliveryAddress.toLowerCase();
 
+    // 1) AI-matched location (validated against our list in geminiService)
+    if (result.matchedLocation) {
+      const aiLoc = locations.find(l => l.name === result.matchedLocation);
+      if (aiLoc) {
+        return aiLoc.name === currentLocation
+          ? { status: 'verified' as const, matchedLocation: aiLoc }
+          : { status: 'wrong-location' as const, matchedLocation: aiLoc };
+      }
+    }
+
+    // 2) Fallback: manual address_keywords matching
     const findMatch = (loc: LocationData) => {
       const kws = loc.address_keywords || [];
       return kws.some(kw => kw && addrLower.includes(kw.toLowerCase()));

@@ -38,7 +38,20 @@ const getAiClient = () => {
 
 const MODEL_NAME = "gemini-3-flash-preview";
 
-export const analyzeInvoiceImage = async (base64Data: string, mimeType: string = "image/png"): Promise<AnalysisResult> => {
+// Org locations passed in so the AI can match the invoice's Ship To address
+// against the tenant's own registered locations (multi-tenant safe — callers
+// only pass the locations the current user can access).
+export interface LocationContext {
+  name: string;
+  address?: string | null;
+  keywords?: string[] | null;
+}
+
+export const analyzeInvoiceImage = async (
+  base64Data: string,
+  mimeType: string = "image/png",
+  locations: LocationContext[] = []
+): Promise<AnalysisResult> => {
   try {
     const aiClient = getAiClient();
     
@@ -52,11 +65,27 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string =
 
     const glCodeContext = GL_CODES.map(g => `${g.code}: ${g.category} (${g.description || ''})`).join('\n');
 
+    const locationContext = locations
+      .map(l => {
+        const extras = [l.address, ...(l.keywords || [])].filter(Boolean).join(' | ');
+        return `Name:${l.name}${extras ? ` | Address:${extras}` : ''}`;
+      })
+      .join('\n');
+
     const prompt = `
       You are an expert culinary accountant. Analyze this invoice (Image or PDF).
-      
+
       CRITICAL INSTRUCTION: Check the "Ship To" or "Delivery Address".
-      
+      ${locationContext ? `
+      REGISTERED LOCATIONS (Format: Name | Address):
+      ${locationContext}
+
+      Compare the invoice's Ship To / Delivery Address against the REGISTERED LOCATIONS above.
+      Match on street number, street name, city, or ZIP code — tolerate abbreviations
+      (e.g. "W Temple Ave" matches "West Temple Avenue"). If exactly one location matches,
+      return its Name EXACTLY as written above in 'matchedLocation'. If none match or you
+      are unsure, return an empty string for 'matchedLocation'. Never guess.
+      ` : ''}
       We have a MASTER PRODUCT DATABASE. You MUST check this database first for every line item.
       
       MASTER PRODUCT DATABASE (Format: Prod#|Desc|Cat|Code):
@@ -104,6 +133,7 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string =
             invoiceNumber: { type: Type.STRING },
             invoiceDate: { type: Type.STRING },
             deliveryAddress: { type: Type.STRING, description: "The Ship To or Delivery Address found on the invoice" },
+            matchedLocation: { type: Type.STRING, description: "Exact name of the registered location the delivery address matches, or empty string if none" },
             totalAmount: { type: Type.NUMBER },
             items: {
               type: Type.ARRAY,
@@ -142,11 +172,19 @@ export const analyzeInvoiceImage = async (base64Data: string, mimeType: string =
 
     const items = Array.isArray(data.items) ? data.items : [];
 
+    // Only accept a matchedLocation that exists in the provided list (the AI
+    // could hallucinate a name); normalize to the canonical casing.
+    const rawMatch = String(data.matchedLocation || "").trim().toLowerCase();
+    const matchedLocation = rawMatch
+      ? locations.find(l => l.name.toLowerCase() === rawMatch)?.name || ""
+      : "";
+
     return {
       vendorName: String(data.vendorName || "Unknown Vendor"),
       invoiceNumber: String(data.invoiceNumber || ""),
       invoiceDate: String(data.invoiceDate || ""),
       deliveryAddress: String(data.deliveryAddress || ""),
+      matchedLocation,
       totalAmount: Number(data.totalAmount) || 0,
       items: items.map((rawItem: any, index: number) => {
         const item = rawItem || {};
