@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { ChefHat, Lock, User, Mail, CheckCircle2, Loader2, ArrowLeft, UserPlus, Building2, Sparkles, Zap } from 'lucide-react';
+import { ChefHat, Lock, User, Mail, CheckCircle2, Loader2, ArrowLeft, UserPlus, Building2, Sparkles, Zap, KeyRound } from 'lucide-react';
 import { UserRole } from '../types';
 import { signIn, signUp, getUserRole, Plan } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 
 interface LoginProps {
   onLogin: (role: UserRole) => void;
 }
 
-type LoginMode = 'signin' | 'signup';
+type LoginMode = 'signin' | 'signup' | 'forgot';
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [mode, setMode] = useState<LoginMode>('signin');
@@ -19,6 +20,24 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/app`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset email.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,15 +186,97 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </button>
               </form>
 
-              <div className="mt-6 text-center">
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={() => { setMode('forgot'); setError(''); }}
+                  className="text-slate-500 hover:text-cyan-600 font-medium inline-flex items-center gap-1.5"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Forgot password?
+                </button>
                 <button
                   onClick={() => { setMode('signup'); setError(''); }}
-                  className="text-sm text-cyan-600 hover:text-cyan-500 font-medium inline-flex items-center gap-1"
+                  className="text-cyan-600 hover:text-cyan-500 font-medium inline-flex items-center gap-1"
                 >
-                  <UserPlus className="h-4 w-4" />
-                  Create a new account
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Create account
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* ── Forgot Password Form ── */}
+          {mode === 'forgot' && (
+            <div>
+              <button
+                onClick={() => { setMode('signin'); setError(''); setResetSent(false); }}
+                className="text-sm text-slate-500 hover:text-slate-700 font-medium inline-flex items-center gap-1 mb-6"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to sign in
+              </button>
+
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Reset password</h2>
+              <p className="mt-2 text-sm text-slate-600 mb-8">
+                Enter your email and we'll send you a link to set a new password.
+              </p>
+
+              {resetSent ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center">
+                  <div className="inline-flex p-2 bg-emerald-100 rounded-full mb-3">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <h3 className="text-base font-bold text-emerald-900 mb-1">Check Your Email</h3>
+                  <p className="text-sm text-emerald-700">
+                    We sent a password reset link to <strong>{email}</strong>. Click it to set a new password.
+                  </p>
+                  <button
+                    onClick={() => { setMode('signin'); setResetSent(false); }}
+                    className="mt-4 text-sm font-medium text-emerald-700 hover:text-emerald-900"
+                  >
+                    Back to sign in
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-5">
+                  <div>
+                    <label htmlFor="forgot-email" className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                      Email
+                    </label>
+                    <div className="relative rounded-lg shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Mail className="h-4 w-4 text-slate-400" />
+                      </div>
+                      <input
+                        id="forgot-email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                        className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
+                        placeholder="you@company.com"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
+                      <p className="text-sm text-red-600">{error}</p>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading || !email}
+                    className="w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 transition-all disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound size={14} />}
+                    {loading ? 'Sending...' : 'Send Reset Link'}
+                  </button>
+                </form>
+              )}
             </div>
           )}
 

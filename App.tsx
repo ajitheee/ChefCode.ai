@@ -69,8 +69,20 @@ const App: React.FC = () => {
   const [userDbRole, setUserDbRole] = useState<string>('owner');
   const [userLocationId, setUserLocationId] = useState<string | null>(null);
   const [org, setOrg] = useState<OrgData | null>(null);
+  // True when user arrives via invite or password-recovery email — they must
+  // set a password before they can use the app.
+  const [mustSetPassword, setMustSetPassword] = useState(false);
+  const [setPwForm, setSetPwForm] = useState({ pw: '', confirm: '', loading: false, error: '' });
 
   useEffect(() => {
+    // Detect invite / password-recovery flow from URL hash.
+    // Supabase appends #access_token=...&type=invite|recovery after the link
+    // is clicked. We force these users through password setup before app use.
+    const hash = window.location.hash;
+    if (hash.includes('type=invite') || hash.includes('type=recovery')) {
+      setMustSetPassword(true);
+    }
+
     // Check for existing Supabase session on load
     getSession().then((session) => {
       if (session?.user) {
@@ -610,6 +622,114 @@ const App: React.FC = () => {
     return { status: 'active' as const, daysLeft };
   })();
   const isReadOnly = trialStatus.status === 'expired';
+
+  // ── Password setup handler (invite / recovery flow) ──
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSetPwForm(f => ({ ...f, error: '' }));
+
+    if (setPwForm.pw.length < 6) {
+      setSetPwForm(f => ({ ...f, error: 'Password must be at least 6 characters.' }));
+      return;
+    }
+    if (setPwForm.pw !== setPwForm.confirm) {
+      setSetPwForm(f => ({ ...f, error: 'Passwords do not match.' }));
+      return;
+    }
+
+    setSetPwForm(f => ({ ...f, loading: true }));
+    try {
+      const { error } = await supabase.auth.updateUser({ password: setPwForm.pw });
+      if (error) throw error;
+      // Clean the auth tokens out of the URL, then continue into the app
+      window.history.replaceState(null, '', window.location.pathname);
+      setMustSetPassword(false);
+      setSetPwForm({ pw: '', confirm: '', loading: false, error: '' });
+    } catch (err: any) {
+      setSetPwForm(f => ({ ...f, loading: false, error: err.message || 'Failed to set password.' }));
+    }
+  };
+
+  // ── Set Password Screen (shown after clicking invite/recovery email) ──
+  if (mustSetPassword) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/30 to-blue-50/50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex p-3 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-2xl shadow-xl shadow-cyan-500/20 mb-4">
+              <ChefHat size={32} className="text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Set Your Password</h1>
+            <p className="text-sm text-slate-600 mt-2">
+              Welcome to ChefCode<span className="text-cyan-600">.ai</span>! Choose a password to finish setting up your account.
+            </p>
+          </div>
+
+          <form onSubmit={handleSetPassword} className="bg-white rounded-2xl shadow-xl border border-slate-200/60 p-6 space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                New Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <LockIcon size={16} className="text-slate-400" />
+                </div>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={setPwForm.pw}
+                  onChange={(e) => setSetPwForm(f => ({ ...f, pw: e.target.value, error: '' }))}
+                  className="w-full pl-10 text-sm border-slate-300 rounded-lg py-2.5 focus:ring-cyan-500 focus:border-cyan-500"
+                  placeholder="At least 6 characters"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <LockIcon size={16} className="text-slate-400" />
+                </div>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={setPwForm.confirm}
+                  onChange={(e) => setSetPwForm(f => ({ ...f, confirm: e.target.value, error: '' }))}
+                  className="w-full pl-10 text-sm border-slate-300 rounded-lg py-2.5 focus:ring-cyan-500 focus:border-cyan-500"
+                  placeholder="Re-enter password"
+                />
+              </div>
+            </div>
+
+            {setPwForm.error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-700">{setPwForm.error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={setPwForm.loading || !setPwForm.pw || !setPwForm.confirm}
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 shadow-md disabled:opacity-50 transition-all"
+            >
+              {setPwForm.loading ? <CheckCircle2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+              {setPwForm.loading ? 'Setting password...' : 'Set Password & Continue'}
+            </button>
+          </form>
+
+          <p className="text-center text-xs text-slate-500 mt-6">
+            By continuing, you agree to ChefCode's Terms of Service
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
