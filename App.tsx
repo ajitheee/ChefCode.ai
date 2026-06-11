@@ -96,6 +96,10 @@ const App: React.FC = () => {
     // Listen for auth changes (login/logout from other tabs)
     const subscription = onAuthStateChange((user) => {
       if (user) {
+        // Login.tsx sets this flag while it verifies the typed Tenant ID.
+        // Ignore the transient SIGNED_IN so the Login screen stays mounted
+        // (otherwise the app flashes and a failed check loses its error).
+        if (sessionStorage.getItem('chefcode_verifying_tenant')) return;
         setCurrentUser(getUserRole(user));
         setUserName(getUserName(user));
         setUserEmail(user.email || '');
@@ -109,6 +113,22 @@ const App: React.FC = () => {
     const savedLoc = localStorage.getItem('chefcode_location');
     if (savedLoc) setCurrentLocation(savedLoc);
 
+    return () => { subscription.unsubscribe(); };
+  }, []);
+
+  // Load org-scoped data whenever the user signs in, and clear it on sign-out.
+  // This previously ran only on page load — signing in through the Login screen
+  // left locations/vendors empty until a full refresh, which is why the Active
+  // Location sometimes didn't populate.
+  useEffect(() => {
+    if (!currentUser) {
+      setLocations([]);
+      setVendors([]);
+      setOrg(null);
+      setRecentInvoices([]);
+      return;
+    }
+
     const loadRecent = async () => {
       const invoices = await getSavedInvoices();
       setRecentInvoices(invoices.slice(0, 5));
@@ -119,6 +139,7 @@ const App: React.FC = () => {
     const loadOrgData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      const savedLoc = localStorage.getItem('chefcode_location');
 
       const [locRes, vendorRes, profileRes, accessRes] = await Promise.all([
         supabase.from('locations').select('id, name, location_code, address, address_keywords').eq('is_active', true).order('name'),
@@ -181,12 +202,18 @@ const App: React.FC = () => {
       }
     };
     loadOrgData();
-
-    return () => { subscription.unsubscribe(); };
-  }, []);
+  }, [currentUser]);
 
   const handleLogin = (role: UserRole) => {
     setCurrentUser(role);
+    // The SIGNED_IN event was suppressed during tenant verification, so
+    // load the signed-in user's name/email here instead.
+    getSession().then((session) => {
+      if (session?.user) {
+        setUserName(getUserName(session.user));
+        setUserEmail(session.user.email || '');
+      }
+    });
   };
 
   const handleLogout = async () => {

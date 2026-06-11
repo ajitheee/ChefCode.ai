@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, Database, CheckCircle2, AlertCircle, Plus, Save, X, MapPin, Building2, Hash, Trash2, Edit2, Users, Tag, Lock, Shield } from 'lucide-react';
+import { Upload, Database, CheckCircle2, AlertCircle, Plus, Save, X, MapPin, Building2, Hash, Trash2, Edit2, Users, Tag, Lock, Shield, Settings as SettingsIcon, KeyRound, User } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Product } from '../types';
 import { importProductsFromExcel } from '../services/productService';
@@ -39,7 +39,16 @@ export const AdminPanel: React.FC = () => {
   const [vendors, setVendors] = useState<VendorRow[]>([]);
   const [team, setTeam] = useState<TeamMemberRow[]>([]);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
-  const [activeSection, setActiveSection] = useState<'products' | 'locations' | 'vendors' | 'team'>('locations');
+  const [activeSection, setActiveSection] = useState<'products' | 'locations' | 'vendors' | 'team' | 'settings'>('locations');
+
+  // Settings section (tenant + my account)
+  const [myProfile, setMyProfile] = useState<{ id: string; full_name: string; email: string; role: string } | null>(null);
+  const [orgInfo, setOrgInfo] = useState<{ id: string; name: string; plan: string } | null>(null);
+  const [editTenantName, setEditTenantName] = useState('');
+  const [editFullName, setEditFullName] = useState('');
+  const [pwForm, setPwForm] = useState({ pw: '', confirm: '' });
+  const [settingsMsg, setSettingsMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   // Invite form
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'chef', location_id: '' });
@@ -61,7 +70,90 @@ export const AdminPanel: React.FC = () => {
     loadVendors();
     loadTeam();
     loadPendingInvites();
+    loadSettings();
   }, []);
+
+  // ─── Settings: tenant + my account ──────────────────────────
+  const loadSettings = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, role, org_id')
+      .eq('id', user.id)
+      .single();
+    if (!profile) return;
+    setMyProfile({ id: user.id, full_name: profile.full_name || '', email: user.email || '', role: profile.role || '' });
+    setEditFullName(profile.full_name || '');
+    if (profile.org_id) {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('id, name, plan')
+        .eq('id', profile.org_id)
+        .single();
+      if (org) {
+        setOrgInfo(org);
+        setEditTenantName(org.name || '');
+      }
+    }
+  };
+
+  const handleSaveTenantName = async () => {
+    if (!orgInfo || !editTenantName.trim()) return;
+    setSettingsSaving(true);
+    setSettingsMsg(null);
+    const { error } = await supabase
+      .from('organizations')
+      .update({ name: editTenantName.trim() })
+      .eq('id', orgInfo.id);
+    if (error) {
+      setSettingsMsg({ type: 'error', text: error.message });
+    } else {
+      setOrgInfo({ ...orgInfo, name: editTenantName.trim() });
+      setSettingsMsg({ type: 'success', text: 'Tenant ID updated. Everyone must use the new name at sign-in from now on.' });
+    }
+    setSettingsSaving(false);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!myProfile || !editFullName.trim()) return;
+    setSettingsSaving(true);
+    setSettingsMsg(null);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ full_name: editFullName.trim() })
+      .eq('id', myProfile.id);
+    if (error) {
+      setSettingsMsg({ type: 'error', text: error.message });
+    } else {
+      // Keep auth metadata in sync so the sidebar greeting updates too
+      await supabase.auth.updateUser({ data: { full_name: editFullName.trim() } });
+      setMyProfile({ ...myProfile, full_name: editFullName.trim() });
+      setSettingsMsg({ type: 'success', text: 'Profile updated.' });
+    }
+    setSettingsSaving(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (pwForm.pw.length < 6) {
+      setSettingsMsg({ type: 'error', text: 'Password must be at least 6 characters.' });
+      return;
+    }
+    if (pwForm.pw !== pwForm.confirm) {
+      setSettingsMsg({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+    setSettingsSaving(true);
+    setSettingsMsg(null);
+    const { error } = await supabase.auth.updateUser({ password: pwForm.pw });
+    if (error) {
+      setSettingsMsg({ type: 'error', text: error.message });
+    } else {
+      setPwForm({ pw: '', confirm: '' });
+      setSettingsMsg({ type: 'success', text: 'Password changed successfully.' });
+    }
+    setSettingsSaving(false);
+  };
 
   const loadLocations = async () => {
     const { data } = await supabase
@@ -331,6 +423,7 @@ export const AdminPanel: React.FC = () => {
           { key: 'vendors' as const, label: 'Vendor Accounts', icon: Building2 },
           { key: 'team' as const, label: 'Team Members', icon: Users },
           { key: 'products' as const, label: 'Product Database', icon: Database },
+          { key: 'settings' as const, label: 'Settings', icon: SettingsIcon },
         ].map(tab => (
           <button
             key={tab.key}
@@ -845,6 +938,168 @@ export const AdminPanel: React.FC = () => {
                 <AlertCircle className="h-4 w-4 mr-2 shrink-0" /> {message}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          SETTINGS (tenant + my account)
+          ═══════════════════════════════════════════════ */}
+      {activeSection === 'settings' && (
+        <div className="space-y-6">
+
+          {settingsMsg && (
+            <div className={`p-3 rounded-xl flex items-center text-sm ${
+              settingsMsg.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+            }`}>
+              {settingsMsg.type === 'success'
+                ? <CheckCircle2 className="h-4 w-4 mr-2 shrink-0" />
+                : <AlertCircle className="h-4 w-4 mr-2 shrink-0" />}
+              {settingsMsg.text}
+            </div>
+          )}
+
+          {/* ── Tenant Card ── */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Building2 size={15} className="text-cyan-600" /> Tenant
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Your Tenant ID — every team member must type this exact name when signing in
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between bg-cyan-50 border border-cyan-200/60 rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-[10px] font-bold text-cyan-700 uppercase tracking-wider">Current Tenant ID</p>
+                  <p className="text-lg font-bold text-slate-900">{orgInfo?.name || '—'}</p>
+                </div>
+                {orgInfo?.plan && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-cyan-100 text-cyan-700">
+                    {orgInfo.plan} plan
+                  </span>
+                )}
+              </div>
+
+              {myProfile?.role === 'owner' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                    Rename Tenant
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editTenantName}
+                      onChange={(e) => setEditTenantName(e.target.value)}
+                      className="flex-1 text-sm border-slate-300 rounded-lg py-2 focus:ring-cyan-500 focus:border-cyan-500"
+                      placeholder="Tenant name"
+                    />
+                    <button
+                      onClick={handleSaveTenantName}
+                      disabled={settingsSaving || !editTenantName.trim() || editTenantName.trim() === orgInfo?.name}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <Save size={14} /> Save
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-amber-600 mt-1.5 flex items-center gap-1">
+                    <AlertCircle size={12} className="shrink-0" />
+                    Renaming changes what everyone types at sign-in. Tell your team before saving.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic">Only the organization owner can rename the tenant.</p>
+              )}
+            </div>
+          </div>
+
+          {/* ── My Profile Card ── */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <User size={15} className="text-cyan-600" /> My Profile
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">Your account details</p>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                  Full Name
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editFullName}
+                    onChange={(e) => setEditFullName(e.target.value)}
+                    className="flex-1 text-sm border-slate-300 rounded-lg py-2 focus:ring-cyan-500 focus:border-cyan-500"
+                    placeholder="Your name"
+                  />
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={settingsSaving || !editFullName.trim() || editFullName.trim() === myProfile?.full_name}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Save size={14} />
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                  Email
+                </label>
+                <input
+                  type="text"
+                  value={myProfile?.email || ''}
+                  disabled
+                  className="w-full text-sm border-slate-200 bg-slate-50 text-slate-500 rounded-lg py-2"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">Role: <span className="font-semibold capitalize">{myProfile?.role || '—'}</span></p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Change Password Card ── */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <KeyRound size={15} className="text-cyan-600" /> Change Password
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">Minimum 6 characters</p>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={pwForm.pw}
+                  onChange={(e) => setPwForm(f => ({ ...f, pw: e.target.value }))}
+                  className="w-full text-sm border-slate-300 rounded-lg py-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={pwForm.confirm}
+                  onChange={(e) => setPwForm(f => ({ ...f, confirm: e.target.value }))}
+                  className="w-full text-sm border-slate-300 rounded-lg py-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  placeholder="••••••••"
+                />
+              </div>
+              <button
+                onClick={handleChangePassword}
+                disabled={settingsSaving || !pwForm.pw || !pwForm.confirm}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                <KeyRound size={14} /> Update Password
+              </button>
+            </div>
           </div>
         </div>
       )}
