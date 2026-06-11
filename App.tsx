@@ -96,6 +96,10 @@ const App: React.FC = () => {
     // Listen for auth changes (login/logout from other tabs)
     const subscription = onAuthStateChange((user) => {
       if (user) {
+        // Login.tsx sets this flag while it verifies the typed Tenant ID.
+        // Ignore the transient SIGNED_IN so the Login screen stays mounted
+        // (otherwise the app flashes and a failed check loses its error).
+        if (sessionStorage.getItem('chefcode_verifying_tenant')) return;
         setCurrentUser(getUserRole(user));
         setUserName(getUserName(user));
         setUserEmail(user.email || '');
@@ -202,6 +206,14 @@ const App: React.FC = () => {
 
   const handleLogin = (role: UserRole) => {
     setCurrentUser(role);
+    // The SIGNED_IN event was suppressed during tenant verification, so
+    // load the signed-in user's name/email here instead.
+    getSession().then((session) => {
+      if (session?.user) {
+        setUserName(getUserName(session.user));
+        setUserEmail(session.user.email || '');
+      }
+    });
   };
 
   const handleLogout = async () => {
