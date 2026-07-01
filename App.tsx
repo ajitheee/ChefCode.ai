@@ -5,6 +5,7 @@ import InvoiceTable from './components/InvoiceTable';
 import AddProductModal from './components/AddProductModal';
 import TrackerSheets from './components/TrackerSheets';
 import { AdminPanel } from './components/AdminPanel';
+import { PlatformDashboard } from './components/PlatformDashboard';
 import { Login } from './components/Login';
 import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product, UserRole } from './types';
 import { analyzeInvoiceImage } from './services/geminiService';
@@ -37,7 +38,7 @@ interface OrgData {
   max_invoices_per_month: number;
 }
 import { exportInvoiceToCSV } from './utils/csvExport';
-import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, AlertCircle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X, Sparkles, Lock as LockIcon } from 'lucide-react';
+import { ChefHat, Download, RotateCcw, Save, CheckCircle2, AlertTriangle, AlertCircle, FileText, ExternalLink, LayoutDashboard, TableProperties, MapPin, LogOut, Database, Building2, Calendar, Hash, DollarSign, Tag, CheckCircle, Menu, X, Sparkles, Lock as LockIcon, ShieldCheck } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { motion, AnimatePresence } from 'motion/react';
@@ -48,7 +49,8 @@ const App: React.FC = () => {
   const [locations, setLocations] = useState<LocationData[]>([]);
   const [vendors, setVendors] = useState<VendorData[]>([]);
   
-  const [activeTab, setActiveTab] = useState<'processor' | 'trackers' | 'admin'>('processor');
+  const [activeTab, setActiveTab] = useState<'processor' | 'trackers' | 'admin' | 'platform'>('processor');
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>('idle');
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -140,6 +142,16 @@ const App: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const savedLoc = localStorage.getItem('chefcode_location');
+
+      // Platform-admin flag — isolated query so that if the column doesn't
+      // exist yet (migration not run), it fails silently instead of breaking
+      // the rest of the org-data load.
+      const { data: paRow } = await supabase
+        .from('profiles')
+        .select('is_platform_admin')
+        .eq('id', user.id)
+        .single();
+      if ((paRow as any)?.is_platform_admin) setIsPlatformAdmin(true);
 
       const [locRes, vendorRes, profileRes, accessRes] = await Promise.all([
         supabase.from('locations').select('id, name, location_code, address, address_keywords').eq('is_active', true).order('name'),
@@ -248,6 +260,12 @@ const App: React.FC = () => {
   };
 
   const handleFileSelect = async (file: File) => {
+    // Trial gate: an expired trial must not get free AI extraction.
+    if (isReadOnly) {
+      setErrorMsg('Your trial has expired. Please upgrade to continue processing invoices.');
+      setStatus('error');
+      return;
+    }
     setStatus('uploading');
     setErrorMsg(null);
     setDuplicateWarning(null);
@@ -893,6 +911,27 @@ const App: React.FC = () => {
                 </motion.button>
               </>
             )}
+
+            {isPlatformAdmin && (
+              <motion.button
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => { setActiveTab('platform'); setMobileMenuOpen(false); }}
+                className={`w-full flex items-center px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative group ${
+                  activeTab === 'platform'
+                    ? 'bg-cyan-500/15 text-cyan-300 shadow-sm shadow-cyan-500/10'
+                    : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+                }`}
+              >
+                {activeTab === 'platform' && (
+                  <motion.div layoutId="active-nav" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-cyan-400 rounded-r-full shadow-sm shadow-cyan-400/50" />
+                )}
+                <div className={`p-1.5 rounded-lg mr-3 transition-colors ${activeTab === 'platform' ? 'bg-cyan-500/20' : 'bg-white/[0.04] group-hover:bg-white/[0.08]'}`}>
+                  <ShieldCheck size={16} />
+                </div>
+                Platform Admin
+              </motion.button>
+            )}
           </nav>
 
           {/* ── Location Selector ── */}
@@ -1002,7 +1041,7 @@ const App: React.FC = () => {
             {/* Page title + breadcrumb */}
             <div>
               <h2 className="text-lg font-bold text-slate-800 leading-tight">
-                {activeTab === 'processor' ? 'Invoice Processor' : activeTab === 'trackers' ? 'Tracker Sheets' : 'Admin Panel'}
+                {activeTab === 'processor' ? 'Invoice Processor' : activeTab === 'trackers' ? 'Tracker Sheets' : activeTab === 'platform' ? 'Platform Admin' : 'Admin Panel'}
               </h2>
               <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
                 {activeTab === 'processor'
@@ -1055,7 +1094,9 @@ const App: React.FC = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                {activeTab === 'admin' ? (
+                {activeTab === 'platform' ? (
+                  <PlatformDashboard />
+                ) : activeTab === 'admin' ? (
                   <AdminPanel />
                 ) : activeTab === 'trackers' ? (
                   <TrackerSheets location={currentLocation} />
