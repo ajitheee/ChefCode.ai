@@ -36,7 +36,36 @@ const getAiClient = () => {
   return ai;
 };
 
-const MODEL_NAME = "gemini-3-flash-preview";
+// Stable (GA) model — preview models throw frequent 503 "high demand"
+// (UNAVAILABLE) errors because they aren't provisioned for production load.
+const MODEL_NAME = "gemini-2.0-flash";
+
+// Retry transient server errors (503 UNAVAILABLE / 429 rate limit) with
+// exponential backoff so brief capacity spikes recover instead of failing.
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+const isTransientError = (err: any): boolean => {
+  const status = err?.status || err?.code || err?.error?.code;
+  const msg = String(err?.message || err?.error?.message || '').toLowerCase();
+  return status === 503 || status === 429 ||
+    msg.includes('unavailable') || msg.includes('high demand') ||
+    msg.includes('overloaded') || msg.includes('rate limit');
+};
+
+const generateWithRetry = async (aiClient: GoogleGenAI, request: any, maxAttempts = 4) => {
+  let lastErr: any;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await aiClient.models.generateContent(request);
+    } catch (err: any) {
+      lastErr = err;
+      if (!isTransientError(err) || attempt === maxAttempts - 1) throw err;
+      // 1s, 2s, 4s backoff
+      await sleep(1000 * Math.pow(2, attempt));
+    }
+  }
+  throw lastErr;
+};
 
 // Org locations passed in so the AI can match the invoice's Ship To address
 // against the tenant's own registered locations (multi-tenant safe — callers
@@ -111,7 +140,7 @@ export const analyzeInvoiceImage = async (
       8. Return pure JSON.
     `;
 
-    const response = await aiClient.models.generateContent({
+    const response = await generateWithRetry(aiClient, {
       model: MODEL_NAME,
       contents: {
         parts: [
@@ -203,8 +232,11 @@ export const analyzeInvoiceImage = async (
       })
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error analyzing invoice:", error);
+    if (isTransientError(error)) {
+      throw new Error("The AI service is busy right now (high demand). Please wait a few seconds and try again.");
+    }
     throw error;
   }
 };
