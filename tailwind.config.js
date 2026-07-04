@@ -4,17 +4,26 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Deep-green brand (from the ChefCode "C" logo)
         brand: {
-          50:  '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
+          50:  '#eef6f1',
+          100: '#d6ebe0',
+          200: '#aed7c2',
+          300: '#7cbda0',
+          400: '#4a9d7c',
+          500: '#1e7d5c',
+          600: '#157559',
+          700: '#115e48',
+          800: '#0e4a39',
+          900: '#0c3d30',
+        },
+        // Warm cream surfaces
+        cream: {
+          DEFAULT: '#faf6e8',
+          50:  '#fbf8ee',
+          100: '#f6efce',
+          200: '#ece4c9',
+          300: '#e0d5b0',
         },
       },
       fontFamily: {
