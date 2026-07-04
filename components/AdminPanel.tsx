@@ -39,7 +39,16 @@ export const AdminPanel: React.FC = () => {
   const [vendors, setVendors] = useState<VendorRow[]>([]);
   const [team, setTeam] = useState<TeamMemberRow[]>([]);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
-  const [activeSection, setActiveSection] = useState<'products' | 'locations' | 'vendors' | 'team' | 'settings'>('locations');
+  const [activeSection, setActiveSection] = useState<'products' | 'locations' | 'vendors' | 'glcodes' | 'team' | 'settings'>('locations');
+
+  // GL codes (chart of accounts) — DB-backed
+  const [glCodes, setGlCodes] = useState<{ id: string; code: string; category: string; description: string | null; type: string }[]>([]);
+  const [newGlCode, setNewGlCode] = useState({ code: '', category: '', description: '', type: 'food' });
+  const [glMsg, setGlMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Vendor bulk-import feedback + file input
+  const [vendorMsg, setVendorMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const vendorFileRef = useRef<HTMLInputElement>(null);
 
   // Settings section (tenant + my account)
   const [myProfile, setMyProfile] = useState<{ id: string; full_name: string; email: string; role: string } | null>(null);
@@ -68,6 +77,7 @@ export const AdminPanel: React.FC = () => {
   useEffect(() => {
     loadLocations();
     loadVendors();
+    loadGlCodes();
     loadTeam();
     loadPendingInvites();
     loadSettings();
@@ -384,13 +394,107 @@ export const AdminPanel: React.FC = () => {
     await loadVendors();
   };
 
+  // ─── Vendor bulk import (CSV / Excel) ───────────────────────
+  const handleVendorUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVendorMsg(null);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const wb = XLSX.read(evt.target?.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws) as any[];
+        const parsed = rows.map((r) => {
+          const t = String(r['Type'] || r['type'] || 'food').toLowerCase();
+          return {
+            canonical_name: String(r['Vendor Name'] || r['Vendor'] || r['Name'] || r['canonical_name'] || '').trim(),
+            account_code: String(r['Account Code'] || r['Code'] || r['Account'] || r['account_code'] || '').trim(),
+            type: t.includes('non') ? 'non_food' : t.includes('both') ? 'both' : 'food',
+          };
+        }).filter((v) => v.canonical_name);
+
+        if (parsed.length === 0) {
+          setVendorMsg({ type: 'error', text: 'No vendors found. Expected columns: Vendor Name, Account Code, Type.' });
+          return;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setVendorMsg({ type: 'error', text: 'Not signed in.' }); return; }
+        const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single();
+        if (!profile?.org_id) { setVendorMsg({ type: 'error', text: 'No organization found.' }); return; }
+
+        const seen = new Set(vendors.map((v) => v.canonical_name.toLowerCase()));
+        const toInsert = parsed
+          .filter((v) => { const k = v.canonical_name.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
+          .map((v) => ({
+            org_id: profile.org_id,
+            canonical_name: v.canonical_name,
+            account_code: v.account_code || null,
+            type: v.type,
+            aliases: [v.canonical_name.toLowerCase()],
+          }));
+
+        if (toInsert.length === 0) {
+          setVendorMsg({ type: 'success', text: 'All vendors in the file already exist — nothing to add.' });
+          return;
+        }
+        const { error } = await supabase.from('vendors').insert(toInsert);
+        if (error) setVendorMsg({ type: 'error', text: error.message });
+        else { setVendorMsg({ type: 'success', text: `Imported ${toInsert.length} vendors to the database.` }); await loadVendors(); }
+      } catch (err: any) {
+        setVendorMsg({ type: 'error', text: err?.message || 'Failed to import vendors.' });
+      } finally {
+        if (vendorFileRef.current) vendorFileRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // ─── GL codes (chart of accounts) ───────────────────────────
+  const loadGlCodes = async () => {
+    const { data } = await supabase
+      .from('gl_codes')
+      .select('id, code, category, description, type')
+      .eq('is_active', true)
+      .order('code');
+    setGlCodes(data || []);
+  };
+
+  const handleAddGlCode = async () => {
+    if (!newGlCode.code.trim() || !newGlCode.category.trim()) return;
+    setSaving(true);
+    setGlMsg(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+    const { data: profile } = await supabase.from('profiles').select('org_id').eq('id', user.id).single();
+    if (!profile?.org_id) { setSaving(false); return; }
+
+    const { error } = await supabase.from('gl_codes').insert({
+      org_id: profile.org_id,
+      code: newGlCode.code.trim(),
+      category: newGlCode.category.trim(),
+      description: newGlCode.description.trim() || null,
+      type: newGlCode.type,
+    });
+    if (error) setGlMsg({ type: 'error', text: error.message });
+    else { setNewGlCode({ code: '', category: '', description: '', type: 'food' }); await loadGlCodes(); }
+    setSaving(false);
+  };
+
+  const handleDeleteGlCode = async (id: string) => {
+    const { error } = await supabase.from('gl_codes').delete().eq('id', id);
+    if (error) setGlMsg({ type: 'error', text: error.message });
+    else await loadGlCodes();
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setStatus('processing');
     setMessage('Reading file...');
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
@@ -403,12 +507,12 @@ export const AdminPanel: React.FC = () => {
           category: String(row['Category'] || row['category'] || 'Uncategorized'),
           code: String(row['GL Code'] || row['code'] || '')
         })).filter(p => p.description && p.code);
-        const addedCount = importProductsFromExcel(products);
+        const addedCount = await importProductsFromExcel(products);
         setStatus('success');
-        setMessage(`Successfully imported ${addedCount} new products from ${products.length} rows.`);
-      } catch (error) {
+        setMessage(`Successfully imported ${addedCount} new products to the database from ${products.length} rows.`);
+      } catch (error: any) {
         setStatus('error');
-        setMessage('Failed to parse Excel file.');
+        setMessage(error?.message || 'Failed to import products.');
       }
     };
     reader.readAsBinaryString(file);
@@ -421,6 +525,7 @@ export const AdminPanel: React.FC = () => {
         {[
           { key: 'locations' as const, label: 'Locations & Codes', icon: MapPin },
           { key: 'vendors' as const, label: 'Vendor Accounts', icon: Building2 },
+          { key: 'glcodes' as const, label: 'GL Codes', icon: Tag },
           { key: 'team' as const, label: 'Team Members', icon: Users },
           { key: 'products' as const, label: 'Product Database', icon: Database },
           { key: 'settings' as const, label: 'Settings', icon: SettingsIcon },
@@ -586,6 +691,20 @@ export const AdminPanel: React.FC = () => {
               <p className="text-xs text-slate-500 mt-0.5">Account codes are the same across all locations (e.g. F02124 for Sysco)</p>
             </div>
 
+            {/* Bulk import */}
+            <div className="px-6 py-3 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/30">
+              <p className="text-xs text-slate-500">Bulk import from a spreadsheet — columns: <span className="font-mono">Vendor Name</span>, <span className="font-mono">Account Code</span>, <span className="font-mono">Type</span></p>
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-xs font-semibold rounded-lg text-slate-600 bg-white hover:bg-slate-50 cursor-pointer transition-colors shrink-0">
+                <Upload size={13} /> Upload CSV/Excel
+                <input type="file" accept=".xlsx,.xls,.csv" className="hidden" ref={vendorFileRef} onChange={handleVendorUpload} />
+              </label>
+            </div>
+            {vendorMsg && (
+              <div className={`px-6 py-2.5 text-xs flex items-center gap-2 border-b border-slate-100 ${vendorMsg.type === 'success' ? 'text-emerald-700 bg-emerald-50/50' : 'text-red-700 bg-red-50/50'}`}>
+                {vendorMsg.type === 'success' ? <CheckCircle2 size={13} className="shrink-0" /> : <AlertCircle size={13} className="shrink-0" />} {vendorMsg.text}
+              </div>
+            )}
+
             {/* Vendor list */}
             <div className="divide-y divide-slate-100">
               {vendors.map(v => (
@@ -668,6 +787,92 @@ export const AdminPanel: React.FC = () => {
                 <button
                   onClick={handleAddVendorCode}
                   disabled={saving || !newVendor.name.trim() || !newVendor.account_code.trim()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-cyan-600 text-white text-sm font-semibold rounded-lg hover:bg-cyan-700 disabled:opacity-50 transition-colors shadow-sm"
+                >
+                  <Plus size={14} />
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          GL CODES (chart of accounts)
+          ═══════════════════════════════════════════════ */}
+      {activeSection === 'glcodes' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Chart of Accounts (GL Codes)</h3>
+              <p className="text-xs text-slate-500 mt-0.5">The GL codes your invoices are coded to — the AI uses this list when coding line items</p>
+            </div>
+
+            {glMsg && (
+              <div className={`px-6 py-2.5 text-xs flex items-center gap-2 border-b border-slate-100 ${glMsg.type === 'success' ? 'text-emerald-700 bg-emerald-50/50' : 'text-red-700 bg-red-50/50'}`}>
+                {glMsg.type === 'success' ? <CheckCircle2 size={13} className="shrink-0" /> : <AlertCircle size={13} className="shrink-0" />} {glMsg.text}
+              </div>
+            )}
+
+            {/* GL code list */}
+            <div className="divide-y divide-slate-100">
+              {glCodes.map((g) => (
+                <div key={g.id} className="px-6 py-3 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-sm font-mono font-bold px-2.5 py-1 rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-100 shrink-0">{g.code}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{g.category}</p>
+                      {g.description && <p className="text-[11px] text-slate-400 truncate">{g.description}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{g.type === 'non_food' ? 'Non-Food' : 'Food'}</span>
+                    <button onClick={() => handleDeleteGlCode(g.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
+              {glCodes.length === 0 && (
+                <div className="px-6 py-10 text-center text-sm text-slate-500">No GL codes yet. Add your first below.</div>
+              )}
+            </div>
+
+            {/* Add GL code */}
+            <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Add GL Code</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  value={newGlCode.code}
+                  onChange={(e) => setNewGlCode({ ...newGlCode, code: e.target.value })}
+                  placeholder="Code (6321)"
+                  className="w-28 text-sm font-mono border-slate-200 rounded-lg py-2 px-3 focus:ring-cyan-400 focus:border-cyan-400"
+                />
+                <input
+                  type="text"
+                  value={newGlCode.category}
+                  onChange={(e) => setNewGlCode({ ...newGlCode, category: e.target.value })}
+                  placeholder="Category (e.g. Meats)"
+                  className="flex-1 min-w-[8rem] text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-cyan-400 focus:border-cyan-400"
+                />
+                <input
+                  type="text"
+                  value={newGlCode.description}
+                  onChange={(e) => setNewGlCode({ ...newGlCode, description: e.target.value })}
+                  placeholder="Description (optional)"
+                  className="flex-1 min-w-[8rem] text-sm border-slate-200 rounded-lg py-2 px-3 focus:ring-cyan-400 focus:border-cyan-400"
+                />
+                <select
+                  value={newGlCode.type}
+                  onChange={(e) => setNewGlCode({ ...newGlCode, type: e.target.value })}
+                  className="w-28 text-sm border-slate-200 rounded-lg py-2 px-2 focus:ring-cyan-400 focus:border-cyan-400"
+                >
+                  <option value="food">Food</option>
+                  <option value="non_food">Non-Food</option>
+                </select>
+                <button
+                  onClick={handleAddGlCode}
+                  disabled={saving || !newGlCode.code.trim() || !newGlCode.category.trim()}
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-cyan-600 text-white text-sm font-semibold rounded-lg hover:bg-cyan-700 disabled:opacity-50 transition-colors shadow-sm"
                 >
                   <Plus size={14} />
