@@ -16,7 +16,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [tenantName, setTenantName] = useState('');
-  const [loginOrg, setLoginOrg] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<Plan>('starter');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,46 +43,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    // While this flag is set, App.tsx ignores the transient SIGNED_IN auth
-    // event, so the Login screen stays mounted during tenant verification.
-    // Without it, the app flashes for a moment and a failed verification
-    // bounces back to a freshly mounted login page with the error wiped.
-    sessionStorage.setItem('chefcode_verifying_tenant', '1');
     try {
+      // Email + password uniquely identify the account and its tenant, so no
+      // tenant name is needed at login — the app resolves the org after sign-in.
       const { user } = await signIn(email, password);
-
-      // Tenant verification: the typed tenant must match the org this
-      // account actually belongs to (set when the owner created/invited the
-      // user, or chosen at signup). Mismatch → sign out + clear error.
-      // If the profile/org can't be loaded (legacy account), don't block login.
-      const typed = loginOrg.trim().toLowerCase();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('org_id')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.org_id) {
-        const { data: orgRow } = await supabase
-          .from('organizations')
-          .select('name')
-          .eq('id', profile.org_id)
-          .single();
-        const actual = (orgRow?.name || '').trim().toLowerCase();
-        if (actual && typed !== actual) {
-          await supabase.auth.signOut();
-          throw new Error(`This account is not part of tenant "${loginOrg.trim()}". Please check your Tenant ID — it's the tenant name your account was created under.`);
-        }
-      }
-
       const role = getUserRole(user);
-      sessionStorage.removeItem('chefcode_verifying_tenant');
       onLogin(role);
     } catch (err: any) {
       setError(err.message || 'Invalid email or password.');
     } finally {
-      sessionStorage.removeItem('chefcode_verifying_tenant');
       setLoading(false);
     }
   };
@@ -162,27 +130,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </p>
 
               <form className="space-y-5" onSubmit={handleSignIn}>
-                <div>
-                  <label htmlFor="login-org" className="block text-sm font-medium text-slate-700 mb-1">
-                    Tenant ID
-                  </label>
-                  <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Building2 className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input
-                      id="login-org"
-                      type="text"
-                      required
-                      value={loginOrg}
-                      onChange={(e) => { setLoginOrg(e.target.value); setError(''); }}
-                      className="focus:ring-cyan-500 focus:border-cyan-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-lg py-2.5 transition-colors"
-                      placeholder="Your tenant name"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-1 ml-1">The tenant name your account was created under. Owners can see it in Admin Panel → Settings.</p>
-                </div>
-
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
                     Email
