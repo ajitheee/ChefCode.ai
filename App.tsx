@@ -359,9 +359,9 @@ const App: React.FC = () => {
     setIsAddProductOpen(true);
   };
 
-  const handleSaveProduct = (newProduct: Product) => {
-    saveNewProduct(newProduct);
-    
+  const handleSaveProduct = async (newProduct: Product) => {
+    await saveNewProduct(newProduct);
+
     // Update the item in the current view to show it's now matched
     if (result && productToAdd) {
         const updatedItems = result.items.map(item => 

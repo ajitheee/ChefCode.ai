@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { GL_CODES } from "../constants";
 import { getAllProducts } from "./productService";
+import { getAllGlCodes } from "./glCodeService";
 import { AnalysisResult } from "../types";
 
 // Initialize Gemini Client lazily
@@ -85,14 +85,15 @@ export const analyzeInvoiceImage = async (
     const aiClient = getAiClient();
     
     // Fetch the latest product list (including user-saved ones)
-    const currentProductDB = getAllProducts();
+    const currentProductDB = await getAllProducts();
 
     // Convert DB to a compact CSV-like string for the prompt
     const dbContext = currentProductDB.map(p => 
       `Prod#:${p.productNo}|Desc:${p.description}|Cat:${p.category}|Code:${p.code}`
     ).join('\n');
 
-    const glCodeContext = GL_CODES.map(g => `${g.code}: ${g.category} (${g.description || ''})`).join('\n');
+    const glCodes = await getAllGlCodes();
+    const glCodeContext = glCodes.map(g => `${g.code}: ${g.category} (${g.description || ''})`).join('\n');
 
     const locationContext = locations
       .map(l => {
