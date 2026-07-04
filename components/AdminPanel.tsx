@@ -120,7 +120,7 @@ export const AdminPanel: React.FC = () => {
       setSettingsMsg({ type: 'error', text: error.message });
     } else {
       setOrgInfo({ ...orgInfo, name: editTenantName.trim() });
-      setSettingsMsg({ type: 'success', text: 'Tenant ID updated. Everyone must use the new name at sign-in from now on.' });
+      setSettingsMsg({ type: 'success', text: 'Organization name updated.' });
     }
     setSettingsSaving(false);
   };
@@ -1168,16 +1168,16 @@ export const AdminPanel: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Building2 size={15} className="text-cyan-600" /> Tenant
+                <Building2 size={15} className="text-cyan-600" /> Organization
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Your Tenant ID — every team member must type this exact name when signing in
+                Your organization's name, shown across the app
               </p>
             </div>
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between bg-cyan-50 border border-cyan-200/60 rounded-xl px-4 py-3">
                 <div>
-                  <p className="text-[10px] font-bold text-cyan-700 uppercase tracking-wider">Current Tenant ID</p>
+                  <p className="text-[10px] font-bold text-cyan-700 uppercase tracking-wider">Organization Name</p>
                   <p className="text-lg font-bold text-slate-900">{orgInfo?.name || '—'}</p>
                 </div>
                 {orgInfo?.plan && (
@@ -1190,7 +1190,7 @@ export const AdminPanel: React.FC = () => {
               {myProfile?.role === 'owner' ? (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wider">
-                    Rename Tenant
+                    Rename Organization
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -1208,9 +1208,8 @@ export const AdminPanel: React.FC = () => {
                       <Save size={14} /> Save
                     </button>
                   </div>
-                  <p className="text-[11px] text-amber-600 mt-1.5 flex items-center gap-1">
-                    <AlertCircle size={12} className="shrink-0" />
-                    Renaming changes what everyone types at sign-in. Tell your team before saving.
+                  <p className="text-[11px] text-slate-400 mt-1.5">
+                    This is your organization's display name across the app.
                   </p>
                 </div>
               ) : (
