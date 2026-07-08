@@ -1,0 +1,9 @@
+Code,Category,Description,Type
+6321,Meats,"Beef, Pork, Lamb",food
+6322,Groceries,"Dry goods, spices, canned items",food
+6323,Produce,"Fruits, Vegetables",food
+6325,Dairy,"Milk, Cheese, Butter, Eggs",food
+6326,Beverages,"Soft drinks, Juice, Water",food
+6328,Poultry,"Chicken, Turkey, Duck",food
+7326,Non-Food Expendable,"Disposables, to-go supplies",non_food
+7327,Non-Food Non-Expendable,"Smallwares, equipment",non_food

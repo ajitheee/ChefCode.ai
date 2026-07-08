@@ -2,10 +2,11 @@ const columns = [
   {
     title: 'Product',
     links: [
-      { label: 'Features', href: '#features' },
-      { label: 'How It Works', href: '#how-it-works' },
-      { label: 'Pricing', href: '#pricing' },
-      { label: 'Security', href: '#security' },
+      { label: 'Features', href: '/#features' },
+      { label: 'How It Works', href: '/#how-it-works' },
+      { label: 'Pricing', href: '/#pricing' },
+      { label: 'Security', href: '/#security' },
+      { label: 'Setup Guide', href: '/setup' },
     ],
   },
   {
