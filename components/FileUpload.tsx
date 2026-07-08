@@ -72,7 +72,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isProcessing }) =
         disabled={isProcessing}
       />
 
-      <div className="px-8 py-12">
+      <div className="px-6 py-7">
         <AnimatePresence mode="wait">
           {isProcessing ? (
             <motion.div
@@ -130,19 +130,18 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isProcessing }) =
               className="flex flex-col items-center"
             >
               {/* Upload icon with glow */}
-              <div className="relative mb-5">
+              <div className="relative mb-3">
                 <div className="absolute inset-0 bg-cyan-500/10 rounded-2xl blur-xl scale-150" />
-                <div className="relative p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 text-cyan-600 rounded-2xl shadow-sm border border-cyan-200/50">
-                  <Upload size={28} strokeWidth={2} />
+                <div className="relative p-3 bg-gradient-to-br from-cyan-50 to-cyan-100 text-cyan-600 rounded-2xl shadow-sm border border-cyan-200/50">
+                  <Upload size={22} strokeWidth={2} />
                 </div>
               </div>
 
-              <h3 className="text-xl font-bold text-slate-900 mb-1.5">
+              <h3 className="text-base font-bold text-slate-900 mb-1">
                 Upload Your Invoice
               </h3>
-              <p className="text-sm text-slate-500 max-w-sm mb-5 leading-relaxed">
-                Drag and drop your invoice here, or click to browse.
-                Our AI will extract line items and assign GL codes automatically.
+              <p className="text-sm text-slate-500 max-w-sm mb-3 leading-relaxed">
+                Drag and drop, or click to browse — the AI codes every line item automatically.
               </p>
 
               {/* File type badges */}

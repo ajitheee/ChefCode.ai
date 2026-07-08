@@ -86,7 +86,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="relative z-10">
           <div className="flex items-center text-white mb-8">
             <div className="bg-white p-3 rounded-2xl border-2 border-white/20 mr-6 flex flex-shrink-0 items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.15)] relative">
-              <img src="/logo.png" alt="Logo" className="h-[72px] w-auto object-contain" onError={(e) => {
+              <img src="/logo-mark.svg" alt="Logo" className="h-[72px] w-auto object-contain" onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
                 document.getElementById('fallback-icon-main')!.style.display = 'block';
               }} />
@@ -115,7 +115,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <div>
               <div className="lg:hidden flex items-center justify-center mb-8">
                 <div className="bg-white p-2.5 rounded-xl border border-slate-200 mr-4 flex flex-shrink-0 items-center justify-center shadow-md relative">
-                  <img src="/logo.png" alt="Logo" className="h-[48px] w-auto object-contain" onError={(e) => {
+                  <img src="/logo-mark.svg" alt="Logo" className="h-[48px] w-auto object-contain" onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                     document.getElementById('fallback-icon-mobile')!.style.display = 'block';
                   }} />

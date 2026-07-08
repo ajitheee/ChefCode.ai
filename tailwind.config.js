@@ -4,7 +4,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Deep-green brand (from the ChefCode "C" logo)
+        // Deep-green brand (from the ChefCode "C" logo).
+        // NOTE: index.html's inline Tailwind-CDN config duplicates these values
+        // for the authenticated app (and remaps `cyan` to this green). If you
+        // change a hex here, change it there too, until the CDN shim is retired.
         brand: {
           50:  '#eef6f1',
           100: '#d6ebe0',
