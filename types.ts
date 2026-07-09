@@ -54,7 +54,8 @@ export interface SavedInvoice {
   processedAt: string;
   splits?: TrackerSplits;
   items?: InvoiceItem[]; // Save items for historical price tracking
-  location?: string; // Multi-location support
+  location?: string; // Multi-location support (display name)
+  locationId?: string | null; // Multi-location support (UUID, stable across renames)
 }
 
 export interface CustomVendor {

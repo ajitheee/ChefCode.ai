@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InvoiceItem, Product } from '../types';
+import { InvoiceItem, Product, GLCode } from '../types';
 import { GL_CODES } from '../constants';
 import { X, Save, Database } from 'lucide-react';
 
@@ -8,9 +8,11 @@ interface AddProductModalProps {
   onClose: () => void;
   onSave: (product: Product) => void;
   initialItem: InvoiceItem | null;
+  glCodes?: GLCode[]; // the org's DB chart of accounts (falls back to the built-in list)
 }
 
-const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSave, initialItem }) => {
+const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSave, initialItem, glCodes }) => {
+  const codes = glCodes && glCodes.length > 0 ? glCodes : GL_CODES;
   const [formData, setFormData] = useState<Product>({
     productNo: '',
     description: '',
@@ -36,15 +38,14 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
   };
 
   const handleGlChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const idx = parseInt(e.target.value);
-    if (GL_CODES[idx]) {
-      setFormData({
-        ...formData,
-        code: GL_CODES[idx].code,
-        category: GL_CODES[idx].category
-      });
-    }
+    const code = e.target.value;
+    const gl = codes.find(g => g.code === code);
+    setFormData({ ...formData, code, category: gl?.category || '' });
   };
+
+  const glOptions = !formData.code || codes.some(g => g.code === formData.code)
+    ? codes
+    : [{ code: formData.code, category: formData.category || 'AI-assigned' }, ...codes];
 
   if (!isOpen) return null;
 
@@ -74,14 +75,13 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
                     
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700">Product Number</label>
+                        <label className="block text-sm font-medium text-slate-700">Product Number <span className="text-slate-400 font-normal">(optional)</span></label>
                         <input
                           type="text"
-                          required
                           className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm border p-2"
                           value={formData.productNo}
                           onChange={(e) => setFormData({...formData, productNo: e.target.value})}
-                          placeholder="e.g. 123456"
+                          placeholder="e.g. 123456 (leave blank if none)"
                         />
                       </div>
 
@@ -102,10 +102,11 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
                             required
                             className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 sm:text-sm border p-2"
                             onChange={handleGlChange}
-                            value={GL_CODES.findIndex(g => g.code === formData.code && g.category === formData.category)}
+                            value={formData.code || ''}
                          >
-                           {GL_CODES.map((gl, idx) => (
-                             <option key={idx} value={idx}>
+                           <option value="">Select a GL code...</option>
+                           {glOptions.map((gl) => (
+                             <option key={`${gl.code}-${gl.category}`} value={gl.code}>
                                {gl.code} - {gl.category}
                              </option>
                            ))}

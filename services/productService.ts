@@ -101,3 +101,29 @@ export const importProductsFromExcel = async (products: Product[]): Promise<numb
   }
   return toInsert.length;
 };
+
+// One-time migration: products users added under the old localStorage-only
+// model would otherwise be lost now that products live in Supabase. On first
+// authenticated load, push any local products into the DB (deduped), then flag
+// it done so it never runs twice. The flag is only set on success.
+const LEGACY_KEY = 'chefcode_custom_products';
+const MIGRATED_FLAG = 'chefcode_products_migrated';
+
+export const migrateLocalProductsToDb = async (): Promise<number> => {
+  try {
+    if (localStorage.getItem(MIGRATED_FLAG) === '1') return 0;
+    const raw = localStorage.getItem(LEGACY_KEY);
+    const products = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(products) || products.length === 0) {
+      localStorage.setItem(MIGRATED_FLAG, '1'); // nothing to migrate
+      return 0;
+    }
+    const added = await importProductsFromExcel(products as Product[]);
+    localStorage.setItem(MIGRATED_FLAG, '1');
+    return added;
+  } catch (e) {
+    // No org yet / transient failure — leave the flag unset so it retries later.
+    console.warn('Local product migration deferred:', e);
+    return 0;
+  }
+};

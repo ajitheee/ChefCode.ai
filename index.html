@@ -6,24 +6,9 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="apple-touch-icon" href="/logo.svg" />
     <title>ChefCode.ai — AI Invoice Coding</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // App rebrand: the authenticated app (App.tsx / components) is styled by
-      // the Tailwind CDN, not the Vite build. Remap `cyan` to the ChefCode
-      // brand green so the app's existing cyan-* classes render green without
-      // touching every file, and expose `brand` + `cream` too.
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              cyan:  { 50:'#eef6f1',100:'#d6ebe0',200:'#aed7c2',300:'#7cbda0',400:'#4a9d7c',500:'#1e7d5c',600:'#157559',700:'#115e48',800:'#0e4a39',900:'#0c3d30' },
-              brand: { 50:'#eef6f1',100:'#d6ebe0',200:'#aed7c2',300:'#7cbda0',400:'#4a9d7c',500:'#1e7d5c',600:'#157559',700:'#115e48',800:'#0e4a39',900:'#0c3d30' },
-              cream: { DEFAULT:'#faf6e8',50:'#fbf8ee',100:'#f6efce',200:'#ece4c9',300:'#e0d5b0' },
-            }
-          }
-        }
-      }
-    </script>
+    <!-- Tailwind is compiled by the Vite build (src/index.css + tailwind.config.js),
+         which scans the whole app. The old cdn.tailwindcss.com runtime shim has
+         been retired; `cyan` is remapped to brand green in tailwind.config.js. -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
       body {

@@ -484,18 +484,11 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
     };
   }, [foodData, nonFoodData, FOOD_COLS, NON_FOOD_COLS]);
 
-  const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#14b8a6', '#6366f1', '#d946ef'];
+  const COLORS = ['#157559', '#4a9d7c', '#b45309', '#0e4a39', '#7cbda0', '#a16207', '#1e7d5c', '#ca8a04', '#115e48', '#639922', '#8a9089', '#d4a017'];
 
   return (
     <div className="animate-fade-in pb-12">
-      <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Tracker Sheets</h2>
-          <p className="text-slate-500 mt-1">
-            Manage your monthly tracker sheets and view spending analytics.
-          </p>
-        </div>
-        
+      <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-end gap-4">
         <div className="flex flex-wrap items-center gap-3">
           {/* Month Selector */}
           <div className="flex items-center bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
@@ -969,8 +962,8 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                   <AreaChart data={dashboardData.dailyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#157559" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#157559" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -981,7 +974,7 @@ const TrackerSheets: React.FC<TrackerSheetsProps> = ({ location }) => {
                       formatter={(value: number) => [`$${value.toFixed(2)}`, 'Spend']}
                       labelFormatter={(label) => `Day ${label}`}
                     />
-                    <Area type="monotone" dataKey="total" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
+                    <Area type="monotone" dataKey="total" stroke="#157559" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

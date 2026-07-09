@@ -1076,18 +1076,19 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Role legend */}
+          {/* Role legend — static class strings (dynamic bg-${color} classes
+              can't be seen by the Tailwind compiler and won't ship). */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { role: 'Owner', desc: 'Full access. Manages everything.', color: 'amber' },
-              { role: 'Manager', desc: 'Cross-location access. No admin.', color: 'violet' },
-              { role: 'Chef', desc: 'Locked to one location.', color: 'cyan' },
-              { role: 'Viewer', desc: 'Read-only at one location.', color: 'slate' },
+              { role: 'Owner', desc: 'Full access. Manages everything.', box: 'bg-amber-50/50 border-amber-100', dot: 'bg-amber-500', text: 'text-amber-800' },
+              { role: 'Manager', desc: 'Cross-location access. No admin.', box: 'bg-violet-50/50 border-violet-100', dot: 'bg-violet-500', text: 'text-violet-800' },
+              { role: 'Chef', desc: 'Locked to one location.', box: 'bg-cyan-50/50 border-cyan-100', dot: 'bg-cyan-500', text: 'text-cyan-800' },
+              { role: 'Viewer', desc: 'Read-only at one location.', box: 'bg-slate-50 border-slate-200', dot: 'bg-slate-500', text: 'text-slate-700' },
             ].map(r => (
-              <div key={r.role} className={`bg-${r.color}-50/50 border border-${r.color}-100 rounded-xl p-3`}>
+              <div key={r.role} className={`border rounded-xl p-3 ${r.box}`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <div className={`w-2 h-2 rounded-full bg-${r.color}-500`} />
-                  <span className={`text-xs font-bold text-${r.color}-800`}>{r.role}</span>
+                  <div className={`w-2 h-2 rounded-full ${r.dot}`} />
+                  <span className={`text-xs font-bold ${r.text}`}>{r.role}</span>
                 </div>
                 <p className="text-[11px] text-slate-600 leading-snug">{r.desc}</p>
               </div>

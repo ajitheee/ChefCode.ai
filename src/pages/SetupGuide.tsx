@@ -4,7 +4,7 @@ import { MapPin, ListOrdered, Building2, Database, Download, ArrowRight } from '
 
 const gather = [
   { icon: MapPin, label: 'Locations', note: 'name, code, address of each kitchen', href: null },
-  { icon: ListOrdered, label: 'GL codes', note: 'your chart of accounts', href: '/templates/gl_codes_template.csv' },
+  { icon: ListOrdered, label: 'GL codes', note: 'your chart of accounts (added in-app)', href: null },
   { icon: Building2, label: 'Vendors', note: 'vendor name + account code', href: '/templates/vendors_template.csv' },
   { icon: Database, label: 'Products', note: 'product → GL code mapping', href: '/templates/products_template.csv' },
 ];

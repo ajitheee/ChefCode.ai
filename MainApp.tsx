@@ -9,8 +9,10 @@ import { PlatformDashboard } from './components/PlatformDashboard';
 import { Login } from './components/Login';
 import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product, UserRole } from './types';
 import { analyzeInvoiceImage } from './services/geminiService';
+import { getAllGlCodes } from './services/glCodeService';
+import { GLCode } from './types';
 import { saveInvoiceToHistory, checkForDuplicate, getSavedInvoices } from './services/storageService';
-import { saveNewProduct } from './services/productService';
+import { saveNewProduct, migrateLocalProductsToDb } from './services/productService';
 import { signOut, getSession, getUserRole, getUserName, onAuthStateChange } from './services/authService';
 import { supabase } from './services/supabaseClient';
 
@@ -64,6 +66,8 @@ const App: React.FC = () => {
   const [recentInvoices, setRecentInvoices] = useState<SavedInvoice[]>([]);
   // Full saved-invoice list — powers the dashboard widgets
   const [savedInvoices, setSavedInvoices] = useState<SavedInvoice[]>([]);
+  // Org's GL codes (from DB) — drives the review-table + add-product dropdowns
+  const [glCodes, setGlCodes] = useState<GLCode[]>([]);
   // Which widget's drill-down panel is open ('spikes' | 'month' | null)
   const [widgetDetail, setWidgetDetail] = useState<null | 'spikes' | 'month'>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -82,13 +86,17 @@ const App: React.FC = () => {
   const [setPwForm, setSetPwForm] = useState({ pw: '', confirm: '', loading: false, error: '' });
 
   useEffect(() => {
-    // Detect invite / password-recovery flow from URL hash.
-    // Supabase appends #access_token=...&type=invite|recovery after the link
-    // is clicked. We force these users through password setup before app use.
+    // Invite / password-recovery flow. The flag is captured in index.tsx before
+    // Supabase clears the hash; we also still check the live hash as a fallback.
     const hash = window.location.hash;
-    if (hash.includes('type=invite') || hash.includes('type=recovery')) {
+    const pwFlow = (() => { try { return sessionStorage.getItem('chefcode_pw_flow') === '1'; } catch { return false; } })();
+    if (pwFlow || hash.includes('type=invite') || hash.includes('type=recovery')) {
       setMustSetPassword(true);
     }
+    // Also catch the recovery event directly, in case the flag was missed.
+    const recoverySub = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setMustSetPassword(true);
+    });
 
     // Check for existing Supabase session on load
     getSession().then((session) => {
@@ -115,7 +123,7 @@ const App: React.FC = () => {
     const savedLoc = localStorage.getItem('chefcode_location');
     if (savedLoc) setCurrentLocation(savedLoc);
 
-    return () => { subscription.unsubscribe(); };
+    return () => { subscription.unsubscribe(); recoverySub.data.subscription.unsubscribe(); };
   }, []);
 
   // Load org-scoped data whenever the user signs in, and clear it on sign-out.
@@ -137,6 +145,9 @@ const App: React.FC = () => {
       setRecentInvoices(invoices.slice(0, 5));
     };
     loadRecent();
+    getAllGlCodes().then(setGlCodes).catch(() => {});
+    // One-time: rescue any products still trapped in this browser's localStorage
+    migrateLocalProductsToDb().catch(() => {});
 
     // Load locations + vendors + user profile + access list from Supabase
     const loadOrgData = async () => {
@@ -293,39 +304,45 @@ const App: React.FC = () => {
       
       data.location = currentLocation;
 
-      // Check for price spikes
-      const history = await getSavedInvoices();
+      // Check for price spikes. Compare each item against the MOST RECENT
+      // prior purchase of the same product AT THIS LOCATION. getSavedInvoices
+      // returns newest-first, so we sort matches by invoice date and take the
+      // latest one strictly before this invoice (guards against out-of-order entry).
+      const activeLocId = locations.find(l => l.name === currentLocation)?.id || null;
+      const fullHistory = await getSavedInvoices();
+      const history = fullHistory.filter(h =>
+        activeLocId ? (h.locationId === activeLocId || !h.locationId) : !h.locationId
+      );
       const enrichedItems = data.items.map(item => {
         let lastPrice: number | null = null;
         let lastDate: string | null = null;
-        // Search history (assuming newest is last, so we search backwards)
-        for (let i = history.length - 1; i >= 0; i--) {
-          const inv = history[i];
-          if (inv.items) {
-            const matched = inv.items.find(historyItem => 
-              historyItem.description === item.description || 
-              (historyItem.productNumber && historyItem.productNumber === item.productNumber)
-            );
-            if (matched && matched.unitPrice) {
+        for (const inv of history) {
+          if (!inv.items) continue;
+          const matched = inv.items.find(historyItem =>
+            historyItem.description === item.description ||
+            (historyItem.productNumber && historyItem.productNumber === item.productNumber)
+          );
+          if (matched && matched.unitPrice) {
+            // Keep the most recent prior price (by invoice date)
+            if (!lastDate || (inv.invoiceDate || '') > lastDate) {
               lastPrice = matched.unitPrice;
-              lastDate = inv.invoiceDate;
-              break;
+              lastDate = inv.invoiceDate || '';
             }
           }
         }
-        
+
         const isSpike = lastPrice !== null && item.unitPrice > lastPrice * 1.10; // 10% spike
-        return { 
-          ...item, 
-          historicalPrice: lastPrice || undefined, 
+        return {
+          ...item,
+          historicalPrice: lastPrice || undefined,
           historicalDate: lastDate || undefined,
-          priceSpike: isSpike 
+          priceSpike: isSpike
         };
       });
       data.items = enrichedItems;
 
-      // Check for duplicates
-      const duplicate = await checkForDuplicate(data);
+      // Check for duplicates (scoped to the active location)
+      const duplicate = await checkForDuplicate(data, activeLocId);
       if (duplicate) {
         setDuplicateWarning(duplicate);
       }
@@ -475,6 +492,7 @@ const App: React.FC = () => {
     const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const activeLocId = locations.find(l => l.name === currentLocation)?.id || null;
 
     let countThis = 0, countLast = 0, spendThis = 0;
     let spikeItems = 0, spikeInvoices = 0, overcharge = 0;
@@ -483,7 +501,13 @@ const App: React.FC = () => {
     const spikeDetails: { id: string; vendorName: string; invoiceNumber: string; invoiceDate: string; items: { description: string; unit: number; hist: number; qty: number }[] }[] = [];
 
     for (const inv of savedInvoices) {
-      if (inv.location && inv.location !== currentLocation) continue;
+      // Scope to the active location by UUID (survives location renames);
+      // legacy invoices with no location_id are included.
+      if (inv.locationId) {
+        if (inv.locationId !== activeLocId) continue;
+      } else if (inv.location && inv.location !== currentLocation) {
+        continue;
+      }
 
       const mk = monthKey(inv.invoiceDate);
       const amt = Number(inv.totalAmount) || 0;
@@ -527,10 +551,15 @@ const App: React.FC = () => {
     spikeDetails.sort((a, b) => (b.invoiceDate || '').localeCompare(a.invoiceDate || ''));
     const topVendor = Object.entries(vendorSpend).sort((a, b) => b[1] - a[1])[0] || null;
     return { countThis, countLast, spendThis, topVendor, spikeItems, spikeInvoices, overcharge, monthInvoices, spikeDetails };
-  }, [savedInvoices, currentLocation]);
+  }, [savedInvoices, currentLocation, locations]);
 
+  // Always show cents — this is accounting data, and rounding hides small
+  // overcharges (e.g. a $0.40 spike would otherwise read as "$0").
   const fmtMoney = (n: number) =>
-    '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    '$' + (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   // Lookup vendor account code (F02124, F02198, etc.) by matching invoice vendor name
   // against the vendors table in Supabase
@@ -799,6 +828,7 @@ const App: React.FC = () => {
       if (error) throw error;
       // Clean the auth tokens out of the URL, then continue into the app
       window.history.replaceState(null, '', window.location.pathname);
+      try { sessionStorage.removeItem('chefcode_pw_flow'); } catch { /* ignore */ }
       setMustSetPassword(false);
       setSetPwForm({ pw: '', confirm: '', loading: false, error: '' });
     } catch (err: any) {
@@ -1573,6 +1603,7 @@ const App: React.FC = () => {
                     onUpdateItem={handleUpdateItem}
                     onDeleteItem={handleDeleteItem}
                     onAddToDb={handleOpenAddProduct}
+                    glCodes={glCodes}
                   />
                 </div>
               </>
@@ -1588,6 +1619,7 @@ const App: React.FC = () => {
       <AddProductModal
         isOpen={isAddProductOpen}
         onClose={() => setIsAddProductOpen(false)}
+        glCodes={glCodes}
         initialItem={productToAdd}
         onSave={handleSaveProduct}
       />
