@@ -9,23 +9,34 @@ interface InvoiceTableProps {
   onUpdateItem: (id: string, field: keyof InvoiceItem, value: any) => void;
   onDeleteItem: (id: string) => void;
   onAddToDb: (item: InvoiceItem) => void;
+  glCodes?: GLCode[]; // the org's DB chart of accounts (falls back to the built-in list)
 }
 
-const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDeleteItem, onAddToDb }) => {
+const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDeleteItem, onAddToDb, glCodes }) => {
+  const codes = glCodes && glCodes.length > 0 ? glCodes : GL_CODES;
 
-  const handleGlChange = (id: string, codeValue: string) => {
-    const index = parseInt(codeValue);
-    if (!isNaN(index) && GL_CODES[index]) {
-      onUpdateItem(id, 'glCode', GL_CODES[index].code);
-      onUpdateItem(id, 'categoryName', GL_CODES[index].category);
-      onUpdateItem(id, 'isDatabaseMatch', false);
-    }
+  // Keyed by the GL code itself (not a fragile array index), so a valid code is
+  // never shown as blank even if it isn't in the org's list.
+  const handleGlChange = (id: string, code: string) => {
+    const gl = codes.find(g => g.code === code);
+    onUpdateItem(id, 'glCode', code);
+    onUpdateItem(id, 'categoryName', gl?.category || '');
+    onUpdateItem(id, 'isDatabaseMatch', false);
   };
+
+  // Ensure the item's current code is always selectable, even if the AI assigned
+  // one that isn't in the org's chart of accounts.
+  const optionsFor = (item: InvoiceItem): GLCode[] =>
+    !item.glCode || codes.some(g => g.code === item.glCode)
+      ? codes
+      : [{ code: item.glCode, category: item.categoryName || 'AI-assigned' }, ...codes];
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
+        {/* min-w keeps columns readable on phones — the wrapper scrolls
+            horizontally instead of squishing the inputs to nothing. */}
+        <table className="w-full min-w-[760px] text-sm text-left">
           {/* ── Sticky Header ── */}
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-200/60">
@@ -137,7 +148,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                 <td className="px-4 py-3.5">
                   <div className="relative">
                     <select
-                      value={GL_CODES.findIndex(g => g.code === item.glCode && g.category === item.categoryName)}
+                      value={item.glCode || ''}
                       onChange={(e) => handleGlChange(item.id, e.target.value)}
                       className={`
                         w-full rounded-lg text-xs font-medium py-2 pl-3 pr-8 border appearance-none cursor-pointer transition-all
@@ -150,9 +161,9 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ items, onUpdateItem, onDele
                         }
                       `}
                     >
-                      <option value="-1">Select Code...</option>
-                      {GL_CODES.map((gl, idx) => (
-                        <option key={`${gl.code}-${gl.category}`} value={idx}>
+                      <option value="">Select Code...</option>
+                      {optionsFor(item).map((gl) => (
+                        <option key={`${gl.code}-${gl.category}`} value={gl.code}>
                           {gl.code} - {gl.category}
                         </option>
                       ))}

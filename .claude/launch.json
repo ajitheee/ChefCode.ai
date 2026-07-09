@@ -6,6 +6,24 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "--port", "3001"],
       "port": 3001
+    },
+    {
+      "name": "apelori-landing",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "C:\\Projects\\Claude Project\\Ajith Project\\CareApproval AI\\landing"],
+      "port": 8765
+    },
+    {
+      "name": "snapnest-landing",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Projects\\Claude Project\\Ajith Project\\snapnest\\node_modules\\next\\dist\\bin\\next", "dev", "C:\\Projects\\Claude Project\\Ajith Project\\snapnest", "--port", "3100"],
+      "port": 3100
+    },
+    {
+      "name": "chefcode-v2",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Projects\\Claude Project\\Ajith Project\\chefcode-v2\\node_modules\\next\\dist\\bin\\next", "dev", "C:\\Projects\\Claude Project\\Ajith Project\\chefcode-v2", "--port", "3200"],
+      "port": 3200
     }
   ]
 }

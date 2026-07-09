@@ -101,8 +101,9 @@ export const saveInvoiceToHistory = async (data: AnalysisResult, locationId?: st
 
   const splits = computeSplits(data);
 
-  // Check for existing invoice (update if duplicate)
-  const existing = await checkForDuplicate(data);
+  // Check for existing invoice (update if duplicate) — scoped to THIS location,
+  // so the same invoice number at a different location doesn't overwrite.
+  const existing = await checkForDuplicate(data, locationId);
 
   if (existing) {
     // Update existing invoice
@@ -204,6 +205,7 @@ export const getSavedInvoices = async (): Promise<SavedInvoice[]> => {
     processedAt: inv.created_at,
     splits: inv.splits || undefined,
     location: inv.location || 'Centerpointe',
+    locationId: inv.location_id || null,
     items: (inv.invoice_items || []).map((item: any) => ({
       id: item.id,
       productNumber: item.product_number,
@@ -222,16 +224,21 @@ export const getSavedInvoices = async (): Promise<SavedInvoice[]> => {
 };
 
 // ─── Check for duplicate invoice ────────────────────────────────────
-export const checkForDuplicate = async (data: AnalysisResult): Promise<SavedInvoice | undefined> => {
+export const checkForDuplicate = async (data: AnalysisResult, locationId?: string | null): Promise<SavedInvoice | undefined> => {
   if (!data.invoiceNumber || !data.vendorName) return undefined;
 
-  const { data: matches } = await supabase
+  let query = supabase
     .from('invoices')
     .select('*')
     .eq('invoice_number', data.invoiceNumber)
-    .ilike('vendor_name', `%${data.vendorName.replace(/[%_]/g, '')}%`)
-    .limit(1);
+    .ilike('vendor_name', `%${data.vendorName.replace(/[%_]/g, '')}%`);
 
+  // A vendor can legitimately reuse an invoice number at a different location
+  // (or per year), so only treat it as the SAME invoice within the same
+  // location. Match null-to-null for legacy rows with no location.
+  query = locationId ? query.eq('location_id', locationId) : query.is('location_id', null);
+
+  const { data: matches } = await query.limit(1);
   if (!matches || matches.length === 0) return undefined;
 
   const inv = matches[0];
@@ -244,6 +251,7 @@ export const checkForDuplicate = async (data: AnalysisResult): Promise<SavedInvo
     processedAt: inv.created_at,
     splits: inv.splits || undefined,
     location: inv.location || 'Centerpointe',
+    locationId: inv.location_id || null,
   };
 };
 

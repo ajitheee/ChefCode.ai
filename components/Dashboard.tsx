@@ -7,9 +7,10 @@ interface DashboardProps {
   data: AnalysisResult;
 }
 
+// Brand palette: greens with warm gold/amber accents that sit well on cream.
 const COLORS = [
-  '#0ea5e9', '#8b5cf6', '#f97316', '#10b981', '#ec4899',
-  '#6366f1', '#14b8a6', '#f59e0b', '#ef4444', '#84cc16',
+  '#157559', '#4a9d7c', '#b45309', '#0e4a39', '#7cbda0',
+  '#a16207', '#1e7d5c', '#ca8a04', '#115e48', '#639922',
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {

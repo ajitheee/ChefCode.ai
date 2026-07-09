@@ -1,43 +1,48 @@
-import { SavedInvoice, InvoiceItem } from '../types';
+import { SavedInvoice } from '../types';
+
+// Quote EVERY cell so a comma, quote, or newline inside any field (a vendor
+// name like "Smith, Inc.", a description, etc.) can't shift the columns.
+const csvCell = (v: unknown): string => {
+  const s = v === null || v === undefined ? '' : String(v);
+  return `"${s.replace(/"/g, '""')}"`;
+};
+
+const toCSV = (headers: string[], rows: unknown[][]): string =>
+  [headers, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n');
 
 export const exportInvoiceToCSV = (invoice: SavedInvoice) => {
   if (!invoice.items || invoice.items.length === 0) {
-    alert("No items to export.");
+    alert('No items to export.');
     return;
   }
 
   const headers = ['Invoice Number', 'Vendor', 'Date', 'Location', 'Product #', 'Description', 'Quantity', 'Unit Price', 'Total Price', 'GL Code', 'Category'];
-  
+
   const rows = invoice.items.map(item => [
     invoice.invoiceNumber,
     invoice.vendorName,
     invoice.invoiceDate,
     invoice.location || 'Centerpointe',
     item.productNumber || '',
-    `"${item.description.replace(/"/g, '""')}"`, // Escape quotes
+    item.description,
     item.quantity,
     item.unitPrice,
     item.totalPrice,
     item.glCode,
-    item.categoryName
+    item.categoryName,
   ]);
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.join(','))
-  ].join('\n');
-
-  downloadCSV(csvContent, `Invoice_${invoice.vendorName}_${invoice.invoiceNumber}.csv`);
+  downloadCSV(toCSV(headers, rows), `Invoice_${invoice.vendorName}_${invoice.invoiceNumber}.csv`);
 };
 
 export const exportAllToCSV = (invoices: SavedInvoice[]) => {
   if (invoices.length === 0) {
-    alert("No data to export.");
+    alert('No data to export.');
     return;
   }
 
   const headers = ['Invoice Number', 'Vendor', 'Date', 'Location', 'Total Amount', 'Food', 'Non-Food Expendable', 'Non-Food Non-Expendable', 'Other'];
-  
+
   const rows = invoices.map(inv => [
     inv.invoiceNumber,
     inv.vendorName,
@@ -47,15 +52,10 @@ export const exportAllToCSV = (invoices: SavedInvoice[]) => {
     inv.splits?.food || 0,
     inv.splits?.nonFoodExpendable || 0,
     inv.splits?.nonFoodNonExpendable || 0,
-    inv.splits?.nonFoodOther || 0
+    inv.splits?.nonFoodOther || 0,
   ]);
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.join(','))
-  ].join('\n');
-
-  downloadCSV(csvContent, `All_Invoices_Summary.csv`);
+  downloadCSV(toCSV(headers, rows), `All_Invoices_Summary.csv`);
 };
 
 const downloadCSV = (csvContent: string, fileName: string) => {
@@ -69,5 +69,6 @@ const downloadCSV = (csvContent: string, fileName: string) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 };

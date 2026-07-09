@@ -3,8 +3,11 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+// Reference each var by its literal `import.meta.env.VITE_*` name so Vite
+// statically inlines ONLY these keys — not the whole env object (which would
+// drag in any other VITE_-prefixed secret).
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase credentials missing. Check your .env.local file.');

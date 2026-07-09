@@ -44,7 +44,19 @@ const MODEL_NAME = "gemini-2.0-flash";
 // exponential backoff so brief capacity spikes recover instead of failing.
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+// Quota / billing exhaustion (free-tier limit hit, credits depleted, billing
+// off). Retrying does NOT help — the customer must wait or we must fix billing.
+const isQuotaExhausted = (err: any): boolean => {
+  const msg = String(err?.message || err?.error?.message || '').toLowerCase();
+  return msg.includes('quota') || msg.includes('billing') || msg.includes('exhausted') ||
+    msg.includes('free_tier') || msg.includes('credits') || msg.includes('depleted') ||
+    msg.includes('limit: 0');
+};
+
+// Transient server-side blips (overload / brief rate limit) that a short
+// backoff can recover from. Quota exhaustion is explicitly NOT transient.
 const isTransientError = (err: any): boolean => {
+  if (isQuotaExhausted(err)) return false;
   const status = err?.status || err?.code || err?.error?.code;
   const msg = String(err?.message || err?.error?.message || '').toLowerCase();
   return status === 503 || status === 429 ||
@@ -235,8 +247,11 @@ export const analyzeInvoiceImage = async (
 
   } catch (error: any) {
     console.error("Error analyzing invoice:", error);
+    if (isQuotaExhausted(error)) {
+      throw new Error("Invoice scanning is temporarily unavailable — the AI usage limit has been reached. Please try again later, or contact support if this continues.");
+    }
     if (isTransientError(error)) {
-      throw new Error("The AI service is busy right now (high demand). Please wait a few seconds and try again.");
+      throw new Error("The AI service is busy right now. Please wait a few seconds and try again.");
     }
     throw error;
   }

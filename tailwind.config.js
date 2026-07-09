@@ -1,13 +1,36 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: [
+    './index.html',
+    './index.tsx',
+    './MainApp.tsx',
+    './constants.ts',
+    './types.ts',
+    './src/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+    './services/**/*.{js,ts,jsx,tsx}',
+    './utils/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
       colors: {
+        // The authenticated app (MainApp.tsx / components) was written with
+        // `cyan-*` classes. Remap `cyan` to the ChefCode brand green so those
+        // 170+ legacy classes render green through the compiled build — no
+        // per-file churn. (This replaces the old Tailwind-CDN shim.)
+        cyan: {
+          50:  '#eef6f1',
+          100: '#d6ebe0',
+          200: '#aed7c2',
+          300: '#7cbda0',
+          400: '#4a9d7c',
+          500: '#1e7d5c',
+          600: '#157559',
+          700: '#115e48',
+          800: '#0e4a39',
+          900: '#0c3d30',
+        },
         // Deep-green brand (from the ChefCode "C" logo).
-        // NOTE: index.html's inline Tailwind-CDN config duplicates these values
-        // for the authenticated app (and remaps `cyan` to this green). If you
-        // change a hex here, change it there too, until the CDN shim is retired.
         brand: {
           50:  '#eef6f1',
           100: '#d6ebe0',
