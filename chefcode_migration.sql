@@ -225,11 +225,21 @@ CREATE POLICY "loc_all_owner_mgr" ON locations
 CREATE POLICY "profile_select_teammates" ON profiles
   FOR SELECT USING (org_id = get_my_org_id());
 
+-- A user may edit their own profile, but role + org_id are frozen once set
+-- (the first NULL->value claim at signup is still allowed). Without the
+-- WITH CHECK, a user could self-promote to owner or hop into another tenant.
 CREATE POLICY "profile_update_self" ON profiles
-  FOR UPDATE USING (id = auth.uid());
+  FOR UPDATE USING (id = auth.uid())
+  WITH CHECK (
+    id = auth.uid()
+    AND (org_id IS NOT DISTINCT FROM get_my_org_id() OR get_my_org_id() IS NULL)
+    AND (role = get_my_role() OR get_my_org_id() IS NULL)
+  );
 
+-- Self-insert may only create a benign unclaimed profile; org_id/role are
+-- claimed later via the (frozen) update path or set by the signup trigger.
 CREATE POLICY "profile_insert_self" ON profiles
-  FOR INSERT WITH CHECK (id = auth.uid());
+  FOR INSERT WITH CHECK (id = auth.uid() AND org_id IS NULL AND role = 'chef');
 
 -- gl_codes
 CREATE POLICY "gl_select" ON gl_codes
