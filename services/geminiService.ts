@@ -36,9 +36,11 @@ const getAiClient = () => {
   return ai;
 };
 
-// Stable (GA) model — preview models throw frequent 503 "high demand"
-// (UNAVAILABLE) errors because they aren't provisioned for production load.
-const MODEL_NAME = "gemini-2.0-flash";
+// `gemini-flash-latest` is an alias that always resolves to Google's current
+// stable Flash model, so we don't get deprecated out again — gemini-2.0-flash
+// was retired (June 2026) and 2.5-flash is locked to pre-existing users.
+// Flash is cheap/fast and supports vision + structured (JSON schema) output.
+const MODEL_NAME = "gemini-flash-latest";
 
 // Retry transient server errors (503 UNAVAILABLE / 429 rate limit) with
 // exponential backoff so brief capacity spikes recover instead of failing.
