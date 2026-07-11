@@ -424,6 +424,25 @@ const App: React.FC = () => {
         // Look up active location's UUID for proper RLS filtering
         const activeLoc = locations.find(l => l.name === currentLocation);
         await saveInvoiceToHistory(result, activeLoc?.id || null);
+
+        // Learn from the user's coding: add any line items that were coded but
+        // aren't in the product DB yet, so the AI auto-matches them next time.
+        // This makes "Finalize & Save" teach the database — no separate
+        // "Add to DB" step needed. saveNewProduct dedupes, so re-saves are safe.
+        try {
+          const toLearn = result.items.filter(
+            (it: any) => it.glCode && it.description && !it.isDatabaseMatch
+          );
+          await Promise.all(toLearn.map((it: any) => saveNewProduct({
+            productNo: it.productNumber || '',
+            description: it.description,
+            category: it.categoryName || it.category || '',
+            code: it.glCode || '',
+          })));
+        } catch (e) {
+          console.warn('Product learning on save failed (invoice still saved):', e);
+        }
+
         setIsSaved(true);
         // Refresh the widget stats + recent list with the newly saved invoice
         getSavedInvoices().then(invoices => {
