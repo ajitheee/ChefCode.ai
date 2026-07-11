@@ -36,11 +36,12 @@ const getAiClient = () => {
   return ai;
 };
 
-// `gemini-flash-latest` is an alias that always resolves to Google's current
-// stable Flash model, so we don't get deprecated out again — gemini-2.0-flash
-// was retired (June 2026) and 2.5-flash is locked to pre-existing users.
-// Flash is cheap/fast and supports vision + structured (JSON schema) output.
-const MODEL_NAME = "gemini-flash-latest";
+// `gemini-flash-lite-latest` is an alias that always resolves to Google's
+// current Flash-Lite model — the cheapest tier that still handles vision +
+// structured (JSON) invoice extraction. Using the alias means we don't get
+// deprecated out again (gemini-2.0-flash was retired June 2026). Verified to
+// match full Flash on product-code matching at a fraction of the token cost.
+const MODEL_NAME = "gemini-flash-lite-latest";
 
 // Retry transient server errors (503 UNAVAILABLE / 429 rate limit) with
 // exponential backoff so brief capacity spikes recover instead of failing.
@@ -169,6 +170,10 @@ export const analyzeInvoiceImage = async (
         ]
       },
       config: {
+        // Invoice extraction is structured output, not a reasoning task —
+        // disable "thinking" so we don't pay for reasoning tokens (billed at the
+        // output rate). Verified: no change in extraction / product-match accuracy.
+        thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
