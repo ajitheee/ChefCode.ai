@@ -127,3 +127,66 @@ export const migrateLocalProductsToDb = async (): Promise<number> => {
     return 0;
   }
 };
+
+// ── Local product matching (Option C) ──────────────────────────────────────
+// Match extracted invoice lines to products IN CODE instead of asking the AI to
+// scan the whole catalog in-prompt (which cost tokens ∝ catalog size and could
+// vary run-to-run). Order: exact product number (fast + deterministic), then
+// exact description, then a conservative token overlap. Returns null when
+// nothing matches confidently — callers then keep the AI's inferred code, so we
+// never do WORSE than the AI's best guess. Abbreviations (CHKN→CHICKEN) won't
+// token-match; those rely on the product-number path or the AI fallback.
+
+const normNum = (s?: string) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const normDesc = (s?: string) => (s || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+const descTokens = (s?: string) => normDesc(s).split(' ').filter(t => t.length >= 3);
+
+export interface ProductIndex {
+  products: Product[];
+  byNumber: Map<string, Product>;
+}
+
+export const buildProductIndex = (products: Product[]): ProductIndex => {
+  const byNumber = new Map<string, Product>();
+  for (const p of products) {
+    const n = normNum(p.productNo);
+    if (n) byNumber.set(n, p);
+  }
+  return { products, byNumber };
+};
+
+export interface ProductMatch { code: string; category: string; }
+
+export const matchProduct = (
+  productNumber: string | undefined,
+  description: string,
+  index: ProductIndex
+): ProductMatch | null => {
+  // 1) Exact product number — the reliable, deterministic path.
+  const n = normNum(productNumber);
+  if (n) {
+    const p = index.byNumber.get(n);
+    if (p) return { code: p.code, category: p.category };
+  }
+  const nd = normDesc(description);
+  if (!nd) return null;
+  // 2) Exact normalized description.
+  const exact = index.products.find(p => normDesc(p.description) === nd);
+  if (exact) return { code: exact.code, category: exact.category };
+  // 3) Conservative token overlap — handles word reorder / extra words, NOT
+  //    abbreviations. Require a strong majority overlap to avoid false matches.
+  const it = new Set(descTokens(description));
+  if (it.size >= 2) {
+    let best: Product | null = null, bestScore = 0;
+    for (const p of index.products) {
+      const pt = descTokens(p.description);
+      if (pt.length === 0) continue;
+      let inter = 0;
+      for (const t of pt) if (it.has(t)) inter++;
+      const score = inter / Math.max(it.size, pt.length);
+      if (score > bestScore) { bestScore = score; best = p; }
+    }
+    if (best && bestScore >= 0.6) return { code: best.code, category: best.category };
+  }
+  return null;
+};
