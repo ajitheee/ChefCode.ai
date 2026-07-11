@@ -498,6 +498,15 @@ const App: React.FC = () => {
   // still counts. Month buckets use the YYYY-MM prefix of invoiceDate to
   // avoid UTC parsing shifts; the spike window uses processedAt (when we
   // caught it), falling back to invoiceDate.
+  // Re-load the GL-code list whenever the user returns to the Processor, so
+  // codes added/edited/deleted in the Admin panel show up without a full page
+  // reload (the list was previously fetched only once at startup).
+  useEffect(() => {
+    if (activeTab === 'processor') {
+      getAllGlCodes().then(setGlCodes).catch(() => {});
+    }
+  }, [activeTab]);
+
   const widgetStats = useMemo(() => {
     const monthKey = (d: string | undefined): string => {
       if (!d) return '';
