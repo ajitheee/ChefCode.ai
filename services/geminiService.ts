@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { getAllProducts } from "./productService";
+import { getAllProducts, buildProductIndex, matchProduct } from "./productService";
 import { getAllGlCodes } from "./glCodeService";
 import { AnalysisResult } from "../types";
 
@@ -99,13 +99,11 @@ export const analyzeInvoiceImage = async (
   try {
     const aiClient = getAiClient();
     
-    // Fetch the latest product list (including user-saved ones)
+    // Option C: products are matched IN CODE after extraction (see the item
+    // mapping below), not sent in the prompt — so token cost stays flat no
+    // matter how big the catalog grows, and product-number matches are exact.
     const currentProductDB = await getAllProducts();
-
-    // Convert DB to a compact CSV-like string for the prompt
-    const dbContext = currentProductDB.map(p => 
-      `Prod#:${p.productNo}|Desc:${p.description}|Cat:${p.category}|Code:${p.code}`
-    ).join('\n');
+    const productIndex = buildProductIndex(currentProductDB);
 
     const glCodes = await getAllGlCodes();
     const glCodeContext = glCodes.map(g => `${g.code}: ${g.category} (${g.description || ''})`).join('\n');
@@ -131,29 +129,19 @@ export const analyzeInvoiceImage = async (
       return its Name EXACTLY as written above in 'matchedLocation'. If none match or you
       are unsure, return an empty string for 'matchedLocation'. Never guess.
       ` : ''}
-      We have a MASTER PRODUCT DATABASE. You MUST check this database first for every line item.
-      
-      MASTER PRODUCT DATABASE (Format: Prod#|Desc|Cat|Code):
-      ${dbContext}
-      
-      GENERAL GL CODE RULES (Use only if item is NOT in Master Database):
+      GL CODE RULES (assign the best-fit code + category for every line item):
       ${glCodeContext}
-      
+
       INSTRUCTIONS:
       1. Extract vendor, invoice number, invoice date, total amount.
       2. Extract the **Delivery Address** (Ship To) exactly as it appears.
-      3. Extract all line items (description, product number if visible, qty, price).
-      4. CRITICAL: For each item's 'totalPrice', you MUST include the base item cost (quantity * unitPrice) PLUS any taxes, CRV, bottle deposits, or fees directly associated with that line item. Do NOT leave taxes as a separate unmapped item. Fold the tax into the product's totalPrice so it reflects the true true landed cost.
-      5. For each item:
-         - **STEP 1 (EXACT MATCH)**: Does the Product Number or Description match an entry in the Master Product Database? 
-           - IF YES: You MUST use the exact 'Code' and 'Cat' (Category) from the database. Set 'isDatabaseMatch' to true.
-           - IF NO: Proceed to Step 2.
-         - **STEP 2 (INFER)**: Use the General GL Code Rules to assign the code. Set 'isDatabaseMatch' to false.
-      6. For inferred items:
-         - If 'Ice Cream', 'Frozen', or 'Coffee', use 6318.
-         - If ambiguous, use best culinary judgment.
-      7. CRITICAL: Always return 'invoiceDate' in YYYY-MM-DD format. If only month/year is found, assume current year or best guess.
-      8. Return pure JSON.
+      3. Extract every line item: description, product number (copy it EXACTLY as printed — digits/letters — whenever it is visible), quantity, unit price.
+      4. CRITICAL: For each item's 'totalPrice', include the base item cost (quantity * unitPrice) PLUS any taxes, CRV, bottle deposits, or fees for that line. Do NOT leave taxes as a separate unmapped item — fold them into that product's totalPrice so it reflects the true landed cost.
+      5. Assign each item the best 'glCode' and 'categoryName' from the GL CODE RULES above (best culinary judgment). If 'Ice Cream', 'Frozen', or 'Coffee', use 6318.
+      6. Set 'isDatabaseMatch' to false for every item — catalog matching is applied automatically in code after extraction, so you do not need to match anything yourself.
+      7. 'productNumber' is important: capture it precisely — it is the key used to match items to our catalog.
+      8. CRITICAL: Always return 'invoiceDate' in YYYY-MM-DD format. If only month/year is found, assume current year or best guess.
+      9. Return pure JSON.
     `;
 
     const response = await generateWithRetry(aiClient, {
@@ -237,17 +225,25 @@ export const analyzeInvoiceImage = async (
       totalAmount: Number(data.totalAmount) || 0,
       items: items.map((rawItem: any, index: number) => {
         const item = rawItem || {};
+        const productNumber = item.productNumber ? String(item.productNumber) : undefined;
+        const description = String(item.description || "Unknown Item");
+        const aiCode = String(item.glCode || "");
+        const aiCategory = String(item.categoryName || "");
+        // Option C: match to the catalog in code. On a hit, use the catalog's
+        // code/category and mark it a DB match; on a miss, keep the AI's
+        // inferred code (so we never do worse than the AI's best guess).
+        const match = matchProduct(productNumber, description, productIndex);
         return {
           id: `item-${Date.now()}-${index}`,
-          productNumber: item.productNumber ? String(item.productNumber) : undefined,
-          description: String(item.description || "Unknown Item"),
+          productNumber,
+          description,
           quantity: Number(item.quantity) || 1,
           unitPrice: Number(item.unitPrice) || 0,
           totalPrice: Number(item.totalPrice) || 0,
-          glCode: String(item.glCode || ""),
-          categoryName: String(item.categoryName || ""),
+          glCode: match ? match.code : aiCode,
+          categoryName: match ? (match.category || aiCategory) : aiCategory,
           confidence: Number(item.confidence) || 1,
-          isDatabaseMatch: Boolean(item.isDatabaseMatch)
+          isDatabaseMatch: !!match
         };
       })
     };
