@@ -633,12 +633,14 @@ const App: React.FC = () => {
     
     doc.setFontSize(12);
     doc.text(`Vendor Name: ${result.vendorName}`, 20, 50);
-    doc.text(`Invoice Date: ${result.invoiceDate || 'N/A'}`, 20, 60);
-    doc.text(`Invoice Number: ${result.invoiceNumber || 'N/A'}`, 20, 70);
-    doc.text(`Total Amount: $${totalAmt.toFixed(2)}`, 20, 80);
-    
+    doc.text(`Vendor Code: ${vendorCode || 'N/A'}`, 20, 60);
+    doc.text(`Location Code: ${locCode || 'N/A'}`, 20, 70);
+    doc.text(`Invoice Date: ${result.invoiceDate || 'N/A'}`, 20, 80);
+    doc.text(`Invoice Number: ${result.invoiceNumber || 'N/A'}`, 20, 90);
+    doc.text(`Total Amount: $${totalAmt.toFixed(2)}`, 20, 100);
+
     doc.setFontSize(16);
-    doc.text("GL Code Breakdown", 20, 100);
+    doc.text("GL Code Breakdown", 20, 120);
     
     // Calculate category breakdown by GL Code
     const codeTotals: Record<string, number> = {};
@@ -647,7 +649,7 @@ const App: React.FC = () => {
       codeTotals[code] = (codeTotals[code] || 0) + (parseFloat(item.totalPrice as any) || 0);
     });
     
-    let yPos = 115;
+    let yPos = 135;
     doc.setFontSize(12);
     Object.entries(codeTotals).forEach(([code, total]) => {
       doc.text(`${code}: $${total.toFixed(2)}`, 20, yPos);
