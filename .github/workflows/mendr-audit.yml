@@ -8,6 +8,13 @@
 # retirement is caught even when no code has changed. (GitHub pauses schedules on
 # a public repo with no activity for 60 days — re-enable it from the Actions tab.)
 #
+# NETWORK: besides fetching the pinned Mendr release (npx) and sending the JSON
+# to your App, the scan makes ONE outbound GET of public, signed registry files
+# from github.com (MENDR_REGISTRY_REFRESH) so it audits against current retirement
+# knowledge, not the knowledge of the day the release was cut. Nothing about this
+# repository is sent by that request. Remove the variable to stay fully offline —
+# a registry older than 14 days then makes a zero-finding result inconclusive.
+#
 # SUPPLY CHAIN: pinned to a Mendr ref via the MENDR_SPEC repo variable (a tag, or a
 # 40-char commit SHA for the strictest pin). Never point it at a branch.
 name: mendr audit
@@ -44,13 +51,24 @@ jobs:
 
       - name: Audit and send findings to Mendr
         env:
-          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.3.0-alpha' }}
+          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.4.0-alpha' }}
           MENDR_APP_URL: https://mendr-app.onrender.com
+          MENDR_REGISTRY_REFRESH: 'on' # one signed GET of public registry files; see NETWORK above
         run: |
+          # Keep the audit's exit code (1 = scanner failure, 3 = inconclusive) so a
+          # broken or inconclusive scan still fails this step — but only AFTER the
+          # evidence has reached your App, so the dashboard shows this run as what
+          # it is instead of a stale "last good run".
+          set +e
           npx --yes "github:ajitheee/mendr#$MENDR_SPEC" audit . \
             --sha "${{ github.event.pull_request.head.sha || github.sha }}" --json > mendr-audit.json
-          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=mendr" | jq -r .value)
-          curl -sS --fail-with-body -X POST "$MENDR_APP_URL/api/ingest" \
-            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-            --data-binary @mendr-audit.json
+          MENDR_STATUS=$?
+          set -e
+          if [ -s mendr-audit.json ]; then
+            TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=mendr" | jq -r .value)
+            curl -sS --fail-with-body -X POST "$MENDR_APP_URL/api/ingest" \
+              -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+              --data-binary @mendr-audit.json
+          fi
+          exit $MENDR_STATUS
