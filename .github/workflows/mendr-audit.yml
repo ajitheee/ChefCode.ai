@@ -1,0 +1,50 @@
+# Mendr audit — sends this repository's retiring-AI-model findings to your Mendr App.
+#
+# The scan runs HERE, in your CI. Only the sanitized JSON (findings, paths, line
+# numbers, classifications, redacted snippets, hashes) is sent — never your code.
+# It is authenticated by THIS run's GitHub OIDC token, so there is no secret to store.
+#
+# SUPPLY CHAIN: pinned to a Mendr ref via the MENDR_SPEC repo variable (a tag, or a
+# 40-char commit SHA for the strictest pin). Never point it at a branch.
+name: mendr audit
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+# Least privilege: read the code to scan it, and id-token to PROVE this run to
+# your Mendr App. No contents:write, no pull-requests:write, no secrets.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: mendr-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Audit and send findings to Mendr
+        env:
+          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.3.0-alpha' }}
+          MENDR_APP_URL: https://mendr-app.onrender.com
+        run: |
+          npx --yes "github:ajitheee/mendr#$MENDR_SPEC" audit . \
+            --sha "${{ github.event.pull_request.head.sha || github.sha }}" --json > mendr-audit.json
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=mendr" | jq -r .value)
+          curl -sS --fail-with-body -X POST "$MENDR_APP_URL/api/ingest" \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            --data-binary @mendr-audit.json
