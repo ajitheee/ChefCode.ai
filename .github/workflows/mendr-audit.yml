@@ -51,7 +51,7 @@ jobs:
 
       - name: Audit and send findings to Mendr
         env:
-          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.4.0-alpha' }}
+          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.4.1-alpha' }}
           MENDR_APP_URL: https://mendr-app.onrender.com
           MENDR_REGISTRY_REFRESH: 'on' # one signed GET of public registry files; see NETWORK above
         run: |
