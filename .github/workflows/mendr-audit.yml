@@ -51,7 +51,7 @@ jobs:
 
       - name: Audit and send findings to Mendr
         env:
-          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.4.1-alpha' }}
+          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.4.2-alpha' }}
           MENDR_APP_URL: https://mendr-app.onrender.com
           MENDR_REGISTRY_REFRESH: 'on' # one signed GET of public registry files; see NETWORK above
         run: |
@@ -65,9 +65,11 @@ jobs:
           MENDR_STATUS=$?
           set -e
           if [ -s mendr-audit.json ]; then
-            TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            # Retries cover a sleeping (free-tier) App waking up and network blips;
+            # the upload is idempotent per workflow run attempt, so a repeat is safe.
+            TOKEN=$(curl -sS --retry 3 --retry-delay 2 --retry-all-errors -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
               "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=mendr" | jq -r .value)
-            curl -sS --fail-with-body -X POST "$MENDR_APP_URL/api/ingest" \
+            curl -sS --fail-with-body --retry 4 --retry-delay 5 --retry-all-errors --max-time 120 -X POST "$MENDR_APP_URL/api/ingest" \
               -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
               --data-binary @mendr-audit.json
           fi
