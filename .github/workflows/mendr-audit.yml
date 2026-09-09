@@ -72,7 +72,7 @@ jobs:
 
       - name: Audit and send findings to Mendr
         env:
-          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.4.4-alpha' }}
+          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.4.5-alpha' }}
           MENDR_APP_URL: https://mendr-app.onrender.com
           MENDR_REGISTRY_REFRESH: 'on' # one signed GET of public registry files; see NETWORK above
         run: |
@@ -110,10 +110,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ajitheee/mendr/mendr-action@v0.4.4-alpha
+      - uses: ajitheee/mendr/mendr-action@v0.4.5-alpha
         with:
-          mendr-spec: github:ajitheee/mendr#v0.4.4-alpha
+          mendr-spec: github:ajitheee/mendr#v0.4.5-alpha
           app-url: https://mendr-app.onrender.com
           approval-gated: 'true' # only what a person approved in the App; nothing approved = nothing done
           approval: ${{ inputs.approval }}
           # eval-command: npm run eval   # optional: a behavioral gate, run in the sandbox
+        env:
+          MENDR_REGISTRY_REFRESH: 'on' # plan against the latest signed registry snapshot (one GET of public files from github.com; nothing sent)
