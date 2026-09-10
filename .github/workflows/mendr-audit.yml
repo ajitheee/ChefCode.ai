@@ -5,7 +5,12 @@
 # verifies an approved swap on a throwaway copy, pushes one branch, opens one pull
 # request, and never merges. The daily audit catches a newly announced retirement
 # when no code has changed. What each job reads and sends, and the one extra GET
-# of signed registry files: https://github.com/ajitheee/mendr/blob/v0.4.6-alpha/TRUST.md
+# of signed registry files: https://github.com/ajitheee/mendr/blob/v0.4.7-alpha/TRUST.md
+#
+# ONE SETTING: for the migration to open its pull request, the repository must
+# allow it: Settings → Actions → General →
+# "Allow GitHub Actions to create and approve pull requests".
+# Without it the verified change still lands on a branch, and the finding says so.
 #
 # SUPPLY CHAIN: both `uses:` lines pin the same Mendr release; bump them together
 # (a 40-char commit SHA is the strictest pin). Never point them at a branch.
@@ -32,7 +37,7 @@ jobs:
     permissions:
       contents: read # read the code to scan it
       id-token: write # prove this run to your App; no secret to store
-    uses: ajitheee/mendr/.github/workflows/reusable-audit.yml@v0.4.6-alpha
+    uses: ajitheee/mendr/.github/workflows/reusable-audit.yml@v0.4.7-alpha
     with:
       app-url: https://mendr-app.onrender.com
       audience: mendr
@@ -44,7 +49,7 @@ jobs:
       contents: write # push the one migration branch
       pull-requests: write # open the one pull request
       id-token: write
-    uses: ajitheee/mendr/.github/workflows/reusable-migrate.yml@v0.4.6-alpha
+    uses: ajitheee/mendr/.github/workflows/reusable-migrate.yml@v0.4.7-alpha
     with:
       app-url: https://mendr-app.onrender.com
       approval: ${{ inputs.approval }}
