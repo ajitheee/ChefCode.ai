@@ -1,37 +1,14 @@
 # Mendr — keeps this repository's retiring-AI-model findings current in your Mendr
-# App, and carries out the migrations you approve there. Two jobs, one file.
+# App and carries out the migrations you approve there. Both jobs run HERE, in your
+# CI: the audit sends only sanitized findings (paths, line numbers, redacted
+# snippets — never your code), proven by this run's OIDC token; the migration
+# verifies an approved swap on a throwaway copy, pushes one branch, opens one pull
+# request, and never merges. The daily audit catches a newly announced retirement
+# when no code has changed. What each job reads and sends, and the one extra GET
+# of signed registry files: https://github.com/ajitheee/mendr/blob/v0.4.6-alpha/TRUST.md
 #
-# AUDIT (every push, every pull request, daily, and on demand): the scan runs HERE,
-# in your CI. Only the sanitized JSON (findings, paths, line numbers,
-# classifications, redacted snippets, hashes) is sent — never your code. It is
-# authenticated by THIS run's GitHub OIDC token, so there is no secret to store.
-# The daily run catches a newly announced retirement when no code has changed.
-# (GitHub pauses schedules on a public repo with no activity for 60 days —
-# re-enable it from the Actions tab.)
-#
-# MIGRATE (on a schedule, and at once when the App starts it): asks the App what a
-# person approved on a finding, verifies each approved swap on a throwaway copy —
-# a baseline-relative type-check and build, plus YOUR test suite — applies it ONLY
-# if the verdict is `verified`, pushes ONE stable branch (mendr/deprecated-model-ids),
-# opens or updates ONE pull request, and reports each step back to the finding.
-# Nothing approved = nothing done, in seconds. Mendr never touches your default
-# branch; it enables GitHub's auto-merge only if you chose that when you approved.
-# Starting it at once needs the App's optional "Actions: write" permission;
-# without it, the schedule alone carries approvals out.
-#
-# NETWORK: besides fetching the pinned Mendr release (npx) and talking to your App,
-# the scan makes ONE outbound GET of public, signed registry files from github.com
-# (MENDR_REGISTRY_REFRESH) so it audits against current retirement knowledge, not
-# the knowledge of the day the release was cut. Nothing about this repository is
-# sent by that request. Remove the variable to stay fully offline — a registry
-# older than 14 days then makes a zero-finding result inconclusive.
-#
-# PERMISSIONS are per job: the audit reads the code and proves itself to the App
-# (contents:read, id-token:write); the migration also pushes its one branch and
-# opens its one PR (contents:write, pull-requests:write). No secrets.
-#
-# SUPPLY CHAIN: pinned to a Mendr ref via the MENDR_SPEC repo variable (a tag, or a
-# 40-char commit SHA for the strictest pin). Never point it at a branch.
+# SUPPLY CHAIN: both `uses:` lines pin the same Mendr release; bump them together
+# (a 40-char commit SHA is the strictest pin). Never point them at a branch.
 name: mendr
 
 on:
@@ -52,70 +29,22 @@ jobs:
   audit:
     # Every push, pull request, the daily schedule and a manual run — not the approvals check.
     if: github.event_name != 'schedule' || github.event.schedule == '37 6 * * *'
-    runs-on: ubuntu-latest
-    # Least privilege: read the code to scan it, and id-token to PROVE this run to
-    # your Mendr App. No contents:write, no pull-requests:write, no secrets.
     permissions:
-      contents: read
-      id-token: write
-    concurrency:
-      group: mendr-audit-${{ github.ref }}
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Audit and send findings to Mendr
-        env:
-          MENDR_SPEC: ${{ vars.MENDR_SPEC || 'v0.4.5-alpha' }}
-          MENDR_APP_URL: https://mendr-app.onrender.com
-          MENDR_REGISTRY_REFRESH: 'on' # one signed GET of public registry files; see NETWORK above
-        run: |
-          # Keep the audit's exit code (1 = scanner failure, 3 = inconclusive) so a
-          # broken or inconclusive scan still fails this step — but only AFTER the
-          # evidence has reached your App, so the dashboard shows this run as what
-          # it is instead of a stale "last good run".
-          set +e
-          npx --yes "github:ajitheee/mendr#$MENDR_SPEC" audit . \
-            --sha "${{ github.event.pull_request.head.sha || github.sha }}" --json > mendr-audit.json
-          MENDR_STATUS=$?
-          set -e
-          if [ -s mendr-audit.json ]; then
-            # Retries cover a sleeping (free-tier) App waking up and network blips;
-            # the upload is idempotent per workflow run attempt, so a repeat is safe.
-            TOKEN=$(curl -sS --retry 3 --retry-delay 2 --retry-all-errors -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=mendr" | jq -r .value)
-            curl -sS --fail-with-body --retry 4 --retry-delay 5 --retry-all-errors --max-time 120 -X POST "$MENDR_APP_URL/api/ingest" \
-              -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-              --data-binary @mendr-audit.json
-          fi
-          exit $MENDR_STATUS
+      contents: read # read the code to scan it
+      id-token: write # prove this run to your App; no secret to store
+    uses: ajitheee/mendr/.github/workflows/reusable-audit.yml@v0.4.6-alpha
+    with:
+      app-url: https://mendr-app.onrender.com
+      audience: mendr
 
   migrate:
     # The approvals schedule, and whenever the App starts this workflow — never on a push or pull request.
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '17 * * * *')
-    runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # push the one migration branch
+      pull-requests: write # open the one pull request
       id-token: write
-    concurrency:
-      group: mendr-migrate
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ajitheee/mendr/mendr-action@v0.4.5-alpha
-        with:
-          mendr-spec: github:ajitheee/mendr#v0.4.5-alpha
-          app-url: https://mendr-app.onrender.com
-          approval-gated: 'true' # only what a person approved in the App; nothing approved = nothing done
-          approval: ${{ inputs.approval }}
-          # eval-command: npm run eval   # optional: a behavioral gate, run in the sandbox
-        env:
-          MENDR_REGISTRY_REFRESH: 'on' # plan against the latest signed registry snapshot (one GET of public files from github.com; nothing sent)
+    uses: ajitheee/mendr/.github/workflows/reusable-migrate.yml@v0.4.6-alpha
+    with:
+      app-url: https://mendr-app.onrender.com
+      approval: ${{ inputs.approval }}
