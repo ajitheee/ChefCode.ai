@@ -8,7 +8,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { PlatformDashboard } from './components/PlatformDashboard';
 import { Login } from './components/Login';
 import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product, UserRole } from './types';
-import { analyzeInvoiceImage } from './services/geminiService';
+import { analyzeInvoiceImage } from './services/aiService';
 import { getAllGlCodes } from './services/glCodeService';
 import { GLCode } from './types';
 import { saveInvoiceToHistory, checkForDuplicate, getSavedInvoices } from './services/storageService';
@@ -794,7 +794,7 @@ const App: React.FC = () => {
     if (!result?.deliveryAddress) return { status: 'no-address' as const, matchedLocation: null };
     const addrLower = result.deliveryAddress.toLowerCase();
 
-    // 1) AI-matched location (validated against our list in geminiService)
+    // 1) AI-matched location (validated against our list in aiService)
     if (result.matchedLocation) {
       const aiLoc = locations.find(l => l.name === result.matchedLocation);
       if (aiLoc) {
