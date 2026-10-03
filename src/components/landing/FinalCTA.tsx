@@ -1,5 +1,6 @@
 import { ArrowRight, Zap } from 'lucide-react';
 import { useReveal } from '../../hooks/useReveal';
+import { DEMO_BOOKING_URL } from '../../siteConfig';
 
 export default function FinalCTA() {
   const ref = useReveal();
@@ -37,10 +38,12 @@ export default function FinalCTA() {
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </a>
               <a
-                href="mailto:sales@chefcode.ai?subject=Book%20a%20Demo"
+                href={DEMO_BOOKING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white/[0.08] border border-cream/20 text-cream font-medium text-base hover:bg-white/[0.14] transition-all"
               >
-                Book a 15-Min Demo
+                Book a 30-Min Demo
               </a>
             </div>
           </div>

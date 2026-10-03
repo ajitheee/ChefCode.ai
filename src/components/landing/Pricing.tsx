@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Star } from 'lucide-react';
 import { useReveal } from '../../hooks/useReveal';
+import { DEMO_BOOKING_URL } from '../../siteConfig';
 
 const plans = [
   {
@@ -26,7 +27,7 @@ const plans = [
     price: { monthly: null, yearly: null },
     desc: 'For university systems and hotel chains.',
     cta: 'Book a Demo',
-    href: 'mailto:sales@chefcode.ai?subject=Enterprise%20Demo%20Request',
+    href: DEMO_BOOKING_URL,
     featured: false,
     items: ['Unlimited locations', 'Unlimited team members', 'Unlimited invoices', 'Everything in Professional', 'SSO / SAML integration', 'API access', 'Vendor EDI connections', 'Dedicated account manager', 'Custom onboarding'],
   },
@@ -92,6 +93,9 @@ export default function Pricing() {
 
                 <a
                   href={p.href}
+                  {...(p.href.startsWith('http')
+                    ? { target: '_blank', rel: 'noopener noreferrer' }
+                    : {})}
                   className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-all ${
                     p.featured ? 'bg-brand-600 text-cream hover:bg-brand-700 shadow-lg shadow-brand-600/25' : 'bg-brand-900 text-cream hover:bg-brand-800'
                   }`}

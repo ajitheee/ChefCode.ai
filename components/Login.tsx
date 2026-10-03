@@ -3,6 +3,7 @@ import { ChefHat, Lock, User, Mail, CheckCircle2, Loader2, ArrowLeft, UserPlus, 
 import { UserRole } from '../types';
 import { signIn, signUp, getUserRole, Plan } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
+import { DEMO_BOOKING_URL } from '../src/siteConfig';
 
 interface LoginProps {
   onLogin: (role: UserRole) => void;
@@ -438,7 +439,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         <p className="text-[10px] text-slate-500">Unlimited locations + SSO + EDI</p>
                       </div>
                     </div>
-                    <a href="mailto:sales@chefcode.ai?subject=Enterprise%20Demo%20Request" className="text-[11px] font-bold text-violet-700 hover:text-violet-900 underline">
+                    <a href={DEMO_BOOKING_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold text-violet-700 hover:text-violet-900 underline">
                       Book a Demo →
                     </a>
                   </div>

@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/check-build-secrets.mjs",
+    "build": "vite build && node scripts/check-build-secrets.mjs && node scripts/check-cta-links.mjs",
     "check:secrets": "node scripts/check-build-secrets.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:ctas": "node scripts/check-cta-links.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.41.0",
