@@ -10,6 +10,7 @@ import { Login } from './components/Login';
 import { AnalysisResult, InvoiceItem, ProcessingStatus, SavedInvoice, Product, UserRole } from './types';
 import { analyzeInvoiceImage } from './services/geminiService';
 import { getAllGlCodes } from './services/glCodeService';
+import { DEMO_BOOKING_URL } from './src/siteConfig';
 import { GLCode } from './types';
 import { saveInvoiceToHistory, checkForDuplicate, getSavedInvoices } from './services/storageService';
 import { saveNewProduct, migrateLocalProductsToDb } from './services/productService';
@@ -1129,7 +1130,9 @@ const App: React.FC = () => {
               </span>
             </div>
             <a
-              href="mailto:sales@chefcode.ai?subject=Upgrade%20to%20Paid%20Plan"
+              href={DEMO_BOOKING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className={`whitespace-nowrap font-bold underline hover:no-underline ${trialStatus.status === 'active' ? 'text-brand-700' : 'text-white'}`}
             >
               Upgrade →
