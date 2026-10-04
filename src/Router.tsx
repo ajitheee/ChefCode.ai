@@ -4,6 +4,20 @@ import './index.css'; // Tailwind build with brand colors for landing page
 // Lazy-load pages so none blocks the others
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const SetupGuide = lazy(() => import('./pages/SetupGuide'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
+const SecurityOverview = lazy(() => import('./pages/SecurityOverview'));
+const DataProcessing = lazy(() => import('./pages/DataProcessing'));
+
+// Policy pages. Longest-prefix-free: none of these is a prefix of another, and
+// none collides with the landing page's #security anchor (that's a hash, not a
+// path). Kept in one table so adding a page is a single line.
+const LEGAL_ROUTES: Array<[string, React.LazyExoticComponent<() => JSX.Element>]> = [
+  ['/privacy', Privacy],
+  ['/terms', Terms],
+  ['/security', SecurityOverview],
+  ['/dpa', DataProcessing],
+];
 // Note: the file is named MainApp.tsx (not App.tsx) on purpose — on Windows
 // the dev server resolved the URL /app to App.tsx case-insensitively and
 // served raw source instead of the SPA.
@@ -33,6 +47,17 @@ export default function Router() {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <SetupGuide />
+      </Suspense>
+    );
+  }
+
+  // Policy pages
+  const legal = LEGAL_ROUTES.find(([prefix]) => path.startsWith(prefix));
+  if (legal) {
+    const Page = legal[1];
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <Page />
       </Suspense>
     );
   }
