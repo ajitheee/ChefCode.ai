@@ -15,7 +15,7 @@ const plans = [
   },
   {
     name: 'Professional',
-    price: { monthly: 299, yearly: 249 },
+    price: { monthly: 199, yearly: 159 },
     desc: 'For multi-location operations that need full control.',
     cta: 'Start Free Trial',
     href: '/app',
