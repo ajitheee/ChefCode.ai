@@ -66,7 +66,7 @@ export default function Features() {
                   <f.icon className="w-5 h-5 text-brand-600" />
                 </div>
                 <h3 className="text-base font-bold text-brand-900 mb-1.5">{f.title}</h3>
-                <p className="text-sm text-brand-800/60 leading-relaxed">{f.desc}</p>
+                <p className="text-sm text-brand-800/75 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -100,7 +100,7 @@ export default function Features() {
                     {v.points.map((pt, j) => (
                       <li key={j} className="flex items-start gap-3">
                         <Check className="w-4 h-4 text-brand-600 mt-0.5 shrink-0" />
-                        <span className="text-sm text-brand-800/70 leading-snug">{pt}</span>
+                        <span className="text-sm text-brand-800/75 leading-snug">{pt}</span>
                       </li>
                     ))}
                   </ul>

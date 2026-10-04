@@ -43,19 +43,19 @@ export default function Pricing() {
         <div className="text-center max-w-2xl mx-auto mb-10">
           <p className="text-sm font-semibold text-brand-600 uppercase tracking-widest mb-3">Pricing</p>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-brand-900 tracking-tight">Simple pricing. No surprises.</h2>
-          <p className="mt-4 text-lg text-brand-800/60">Start free for 15 days. No credit card required.</p>
+          <p className="mt-4 text-lg text-brand-800/75">Start free for 15 days. No credit card required.</p>
         </div>
 
         <div className="flex items-center justify-center gap-3 mb-14">
-          <span className={`text-sm font-medium ${!yearly ? 'text-brand-900' : 'text-brand-800/40'}`}>Monthly</span>
+          <span className={`text-sm font-medium ${!yearly ? 'text-brand-900' : 'text-brand-800/75'}`}>Monthly</span>
           <button
             onClick={() => setYearly(!yearly)}
-            className={`relative w-12 h-6 rounded-full transition-colors ${yearly ? 'bg-brand-600' : 'bg-cream-300'}`}
+            className={`press relative w-12 h-6 rounded-full ${yearly ? 'bg-brand-600' : 'bg-cream-300'}`}
             aria-label="Toggle billing period"
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${yearly ? 'translate-x-6' : ''}`} />
           </button>
-          <span className={`text-sm font-medium ${yearly ? 'text-brand-900' : 'text-brand-800/40'}`}>
+          <span className={`text-sm font-medium ${yearly ? 'text-brand-900' : 'text-brand-800/75'}`}>
             Yearly<span className="ml-1.5 text-xs font-semibold text-brand-600">Save 20%</span>
           </span>
         </div>
@@ -78,13 +78,13 @@ export default function Pricing() {
 
               <div className="p-7">
                 <h3 className="text-lg font-bold text-brand-900">{p.name}</h3>
-                <p className="text-sm text-brand-800/60 mt-1">{p.desc}</p>
+                <p className="text-sm text-brand-800/75 mt-1">{p.desc}</p>
 
                 <div className="mt-6 mb-7">
                   {p.price.monthly !== null ? (
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-extrabold text-brand-900">${yearly ? p.price.yearly : p.price.monthly}</span>
-                      <span className="text-sm text-brand-800/50">/month</span>
+                      <span className="text-sm text-brand-800/75">/month</span>
                     </div>
                   ) : (
                     <div className="flex items-baseline"><span className="text-4xl font-extrabold text-brand-900">Custom</span></div>
@@ -96,7 +96,7 @@ export default function Pricing() {
                   {...(p.href.startsWith('http')
                     ? { target: '_blank', rel: 'noopener noreferrer' }
                     : {})}
-                  className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-all ${
+                  className={`press block w-full text-center py-3 rounded-xl text-sm font-semibold ${
                     p.featured ? 'bg-brand-600 text-cream hover:bg-brand-700 shadow-lg shadow-brand-600/25' : 'bg-brand-900 text-cream hover:bg-brand-800'
                   }`}
                 >
@@ -107,7 +107,7 @@ export default function Pricing() {
                   {p.items.map((item, j) => (
                     <li key={j} className="flex items-start gap-2.5">
                       <Check className="w-4 h-4 mt-0.5 shrink-0 text-brand-600" />
-                      <span className="text-sm text-brand-800/70">{item}</span>
+                      <span className="text-sm text-brand-800/75">{item}</span>
                     </li>
                   ))}
                 </ul>

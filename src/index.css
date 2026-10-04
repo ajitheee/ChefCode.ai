@@ -75,6 +75,60 @@ body {
 ::-webkit-scrollbar-thumb { background: #c7bb91; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #157559; }
 
+/* ── Focus visibility ────────────────────────────── */
+/* Nothing in the site defined a focus style, so Tailwind's preflight reset
+   left keyboard users with no visible focus at all (outline-style computed to
+   `none` on every button and link). The ring colour is a variable so dark
+   sections can flip it to a light tone — a green ring on brand-900 is
+   invisible, which would have been the same bug in a different costume. */
+:root { --focus-ring: #0e4a39; }
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Dark regions: the security band and the final CTA card. */
+.on-dark { --focus-ring: #d6ebe0; }
+
+/* ── Press feedback ──────────────────────────────── */
+/* Feedback belongs on pointer-down, not on release. Without this a tap on a
+   phone gives no acknowledgement at all until the next page paints. */
+.press {
+  transition: transform 100ms ease-out, background-color 150ms ease-out,
+              border-color 150ms ease-out, color 150ms ease-out;
+}
+.press:active { transform: scale(0.97); }
+
+/* ── Reduced motion ──────────────────────────────── */
+/* Reduced motion means a gentler equivalent, not nothing: the reveal still
+   cross-fades so content arrival stays legible, it just stops travelling. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  .reveal { transition: opacity 200ms ease !important; }
+  .reveal.reveal-ready { transform: none !important; }
+
+  .press:active { transform: none; opacity: 0.85; }
+
+  /* Kill decorative looping animations and any transform-based movement,
+     while leaving colour and opacity transitions that aid comprehension. */
+  .scan-line, .animate-float, .animate-pulse-slow, .animate-scan { animation: none !important; }
+  .animate-fade-in-down, .animate-fade-in-up, .animate-fade-in,
+  .animate-slide-in-left, .animate-slide-in-right, .animate-scale-in {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}
+
+/* ── Reduced transparency ────────────────────────── */
+@media (prefers-reduced-transparency: reduce) {
+  .backdrop-blur-lg, .backdrop-blur { backdrop-filter: none !important; }
+  nav.bg-cream\/85 { background-color: #faf6e8 !important; }
+}
+
 /* ── Policy pages: printing / "Save as PDF" ──────── */
 /* Reviewers attach these to a vendor file, so the printed copy drops the site
    chrome, prints black-on-white, and shows link targets inline. */

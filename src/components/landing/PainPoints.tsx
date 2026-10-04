@@ -30,7 +30,7 @@ export default function PainPoints() {
           <h2 className="text-3xl sm:text-4xl font-extrabold text-brand-900 tracking-tight">
             Your invoices are costing you more than you think
           </h2>
-          <p className="mt-4 text-lg text-brand-800/60 leading-relaxed">
+          <p className="mt-4 text-lg text-brand-800/75 leading-relaxed">
             Food service teams lose thousands every month to invisible inefficiencies.
           </p>
         </div>
@@ -45,7 +45,7 @@ export default function PainPoints() {
                 <p.icon className="w-6 h-6 text-brand-600" />
               </div>
               <h3 className="text-lg font-bold text-brand-900 mb-2">{p.title}</h3>
-              <p className="text-sm text-brand-800/60 leading-relaxed">{p.desc}</p>
+              <p className="text-sm text-brand-800/75 leading-relaxed">{p.desc}</p>
             </div>
           ))}
         </div>

@@ -18,7 +18,7 @@ export default function HowItWorks() {
           <h2 className="text-3xl sm:text-4xl font-extrabold text-brand-900 tracking-tight">
             Three steps. Under a minute.
           </h2>
-          <p className="mt-4 text-lg text-brand-800/60 leading-relaxed">
+          <p className="mt-4 text-lg text-brand-800/75 leading-relaxed">
             No training required. If your team can take a photo, they can use ChefCode.
           </p>
         </div>
@@ -38,7 +38,7 @@ export default function HowItWorks() {
               </div>
 
               <h3 className="text-xl font-bold text-brand-900 mb-2">{s.title}</h3>
-              <p className="text-sm text-brand-800/60 leading-relaxed max-w-xs mx-auto">{s.desc}</p>
+              <p className="text-sm text-brand-800/75 leading-relaxed max-w-xs mx-auto">{s.desc}</p>
 
               {i < steps.length - 1 && (
                 <ArrowRight className="hidden md:block absolute top-16 -right-6 w-5 h-5 text-brand-300" />

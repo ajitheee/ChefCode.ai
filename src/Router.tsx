@@ -72,10 +72,10 @@ export default function Router() {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-cream">
       <div className="text-center">
-        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="mt-3 text-sm text-slate-500">Loading...</p>
+        <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="mt-3 text-sm text-brand-800/75">Loading…</p>
       </div>
     </div>
   );
