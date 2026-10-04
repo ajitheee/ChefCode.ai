@@ -4,8 +4,13 @@ import { useReveal } from '../../hooks/useReveal';
 const badges = [
   { icon: Lock, label: '256-bit encryption', desc: 'TLS 1.3 in transit, AES-256 at rest' },
   { icon: Eye, label: 'Row-level isolation', desc: 'Database enforced — not just application logic' },
-  { icon: Server, label: 'SOC 2 infrastructure', desc: 'Hosted on AWS via Supabase, SOC 2 Type II' },
-  { icon: FileCheck, label: 'Complete audit trail', desc: 'Every action logged with user, timestamp, old/new values' },
+  { icon: Server, label: 'SOC 2 infrastructure', desc: 'Runs on Supabase/AWS, SOC 2 Type II certified' },
+  // Was "Complete audit trail — every action logged with user, timestamp,
+  // old/new values". The audit_logs table exists but nothing writes to it, so
+  // that claim would fail the first question of a security review. This states
+  // what the schema actually guarantees today: processed_by plus created_at /
+  // updated_at on every record.
+  { icon: FileCheck, label: 'Traceable records', desc: 'Every invoice carries who processed it and when it changed' },
   { icon: KeyRound, label: 'Role-based access', desc: '4 permission levels — Owner, Manager, Chef, Viewer' },
   { icon: ShieldCheck, label: 'FERPA safe', desc: 'Zero student PII. Invoice data only.' },
 ];
@@ -52,9 +57,15 @@ export default function Security() {
         </div>
 
         <div className="mt-12 text-center">
-          <a href="#" className="inline-flex items-center gap-2 text-sm font-medium text-brand-300 hover:text-brand-200 transition-colors">
+          {/* Was href="#" promising a PDF that did not exist. It now opens the
+              real Security Overview, which carries a "Save as PDF" button for
+              reviewers who need a file to attach. */}
+          <a
+            href="/security"
+            className="inline-flex items-center gap-2 text-sm font-medium text-brand-300 hover:text-brand-200 transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-300"
+          >
             <FileCheck className="w-4 h-4" />
-            Download our Security Overview (PDF)
+            Read our Security Overview
           </a>
         </div>
       </div>

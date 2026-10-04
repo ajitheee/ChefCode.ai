@@ -74,3 +74,20 @@ body {
 ::-webkit-scrollbar-track { background: #ece4c9; }
 ::-webkit-scrollbar-thumb { background: #c7bb91; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #157559; }
+
+/* ── Policy pages: printing / "Save as PDF" ──────── */
+/* Reviewers attach these to a vendor file, so the printed copy drops the site
+   chrome, prints black-on-white, and shows link targets inline. */
+@media print {
+  html { scroll-behavior: auto; }
+  body { background: #fff !important; }
+  .legal-prose, .legal-prose * { color: #000 !important; }
+  .legal-prose a[href^="http"]::after,
+  .legal-prose a[href^="/"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #555 !important;
+  }
+  .legal-prose h2, .legal-prose h3 { break-after: avoid; }
+  .legal-prose table, .legal-prose li { break-inside: avoid; }
+}

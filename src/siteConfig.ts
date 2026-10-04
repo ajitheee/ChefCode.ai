@@ -22,3 +22,22 @@ export const DEMO_BOOKING_URL = 'https://calendly.com/et-ajith2k/30min';
 
 /** True once DEMO_BOOKING_URL has been pointed at a real https:// booking page. */
 export const hasBookingLink = /^https:\/\//.test(DEMO_BOOKING_URL);
+
+/**
+ * Where privacy, security and data-deletion requests go.
+ *
+ * A monitored mailbox, which is what privacy law expects — a channel a person
+ * can actually reach, not a booking form. Worth moving to privacy@chefcode.cc
+ * once that domain has MX records, since an institutional reviewer reads a
+ * branded address as a stronger signal.
+ */
+export const PRIVACY_CONTACT_EMAIL = 'et.ajith2k@gmail.com';
+export const PRIVACY_CONTACT_URL = `mailto:${PRIVACY_CONTACT_EMAIL}`;
+export const PRIVACY_CONTACT_LABEL = 'Email us';
+
+/** Legal entity named in the policies. */
+export const LEGAL_ENTITY = 'ChefCode.ai';
+export const LEGAL_JURISDICTION = 'the State of California, United States';
+
+/** Effective date stamped on the policy pages (ISO, YYYY-MM-DD). */
+export const POLICY_UPDATED = '2026-10-03';

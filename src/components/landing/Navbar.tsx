@@ -26,7 +26,7 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between px-5 sm:px-8 h-[72px]">
         {/* ── Logo ── */}
-        <a href="#" className="flex items-center gap-2.5">
+        <a href="/" aria-label="ChefCode.ai home" className="flex items-center gap-2.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
           <img src="/logo-mark.svg" alt="ChefCode" className="w-7 h-7" />
           <span className="text-xl font-bold tracking-tight text-brand-900">
             ChefCode<span className="text-brand-600">.ai</span>
