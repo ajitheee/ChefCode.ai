@@ -59,6 +59,7 @@ export default function DataProcessing() {
           ['Google LLC', 'Invoice text extraction (Gemini API)', 'The uploaded invoice document only', 'United States'],
           ['Vercel', 'Application hosting and CDN', 'Request metadata including IP address', 'Global edge, United States origin'],
           ['Google LLC', 'Web font delivery', 'IP address at page load', 'Global edge'],
+          ['Unsplash', 'Image delivery on the sign-in screen', 'IP address when the sign-in screen loads', 'Global edge'],
         ]}
       />
 

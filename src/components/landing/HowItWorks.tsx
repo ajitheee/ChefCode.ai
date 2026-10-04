@@ -2,9 +2,9 @@ import { Upload, Cpu, CheckCircle, ArrowRight } from 'lucide-react';
 import { useReveal } from '../../hooks/useReveal';
 
 const steps = [
-  { num: '01', icon: Upload, title: 'Upload', desc: 'Snap a photo with your phone or drop a PDF. We accept any invoice format from any vendor.' },
+  { num: '01', icon: Upload, title: 'Upload', desc: 'Snap a photo with your phone or drop in a PDF, from any vendor.' },
   { num: '02', icon: Cpu, title: 'AI extracts', desc: 'Line items, GL codes, vendor match, product identification — all extracted in under 60 seconds.' },
-  { num: '03', icon: CheckCircle, title: 'Review & export', desc: 'Approve invoices, catch price spikes, and export to QuickBooks or CSV in one click.' },
+  { num: '03', icon: CheckCircle, title: 'Review & export', desc: 'Check the coded lines, catch price changes, and export a PDF summary or CSV in one click.' },
 ];
 
 export default function HowItWorks() {

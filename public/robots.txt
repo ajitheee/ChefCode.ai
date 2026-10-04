@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# The signed-in product. To a crawler it is only a login screen, and indexing
+# it would put a sign-in form in search results instead of the landing page.
+Disallow: /app
+
+Sitemap: https://www.chefcode.cc/sitemap.xml

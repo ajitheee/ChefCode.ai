@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Printer } from 'lucide-react';
 import Navbar from '../landing/Navbar';
 import Footer from '../landing/Footer';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 // Shared chrome for the policy pages (/privacy, /terms, /security, /dpa).
 // One place for the measure, the type scale and the "last updated" stamp, so
@@ -18,6 +19,8 @@ interface Props {
 }
 
 export default function LegalLayout({ eyebrow, title, updated, summary, children }: Props) {
+  useDocumentTitle(title);
+
   return (
     <>
       <div className="print:hidden">
