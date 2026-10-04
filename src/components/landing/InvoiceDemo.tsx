@@ -22,12 +22,12 @@ export default function InvoiceDemo() {
             <FileText className="w-4 h-4 text-brand-600" />
             <span className="text-sm font-semibold text-brand-900">Invoice #INV-2847</span>
           </div>
-          <span className="text-xs font-medium text-brand-800/50">Sysco Foods</span>
+          <span className="text-xs font-medium text-brand-800/75">Sysco Foods</span>
         </div>
 
         {/* ── Body ── */}
         <div className="p-5">
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-[10px] font-semibold uppercase tracking-wider text-brand-800/40 mb-3 px-1">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-[10px] font-semibold uppercase tracking-wider text-brand-800/75 mb-3 px-1">
             <span>Item</span>
             <span className="text-right">Qty</span>
             <span className="text-right">Price</span>
@@ -50,10 +50,10 @@ export default function InvoiceDemo() {
                   )}
                   <span className="text-xs text-brand-900 truncate">{item.name}</span>
                 </div>
-                <span className="text-xs text-brand-800/50 text-right">{item.qty}</span>
+                <span className="text-xs text-brand-800/75 text-right">{item.qty}</span>
                 <div className="text-right">
                   <span className="text-xs text-brand-900">{item.price}</span>
-                  {item.spike && <span className="ml-1.5 text-[10px] font-bold text-amber-600">{item.spike}</span>}
+                  {item.spike && <span className="ml-1.5 text-[10px] font-bold text-amber-800">{item.spike}</span>}
                 </div>
                 <span className="text-[10px] text-brand-600 text-right font-mono font-semibold">{item.gl}</span>
               </div>
@@ -76,7 +76,7 @@ export default function InvoiceDemo() {
 
         {/* ── Footer ── */}
         <div className="px-5 py-3 border-t border-cream-100 bg-cream-50 flex items-center justify-between">
-          <span className="text-[10px] text-brand-800/50">Processed in 47 seconds</span>
+          <span className="text-[10px] text-brand-800/75">Processed in 47 seconds</span>
           <span className="text-[10px] font-medium text-brand-600">98% confidence</span>
         </div>
       </div>

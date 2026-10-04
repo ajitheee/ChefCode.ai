@@ -17,7 +17,7 @@ export default function Stats() {
           {stats.map((s, i) => (
             <div key={i} className={`reveal reveal-delay-${i + 1} text-center`}>
               <p className="text-4xl sm:text-5xl font-extrabold tracking-tight text-brand-600">{s.value}</p>
-              <p className="mt-2 text-sm text-brand-800/60 font-medium">{s.label}</p>
+              <p className="mt-2 text-sm text-brand-800/75 font-medium">{s.label}</p>
             </div>
           ))}
         </div>

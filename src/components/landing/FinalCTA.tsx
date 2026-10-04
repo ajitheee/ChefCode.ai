@@ -8,7 +8,7 @@ export default function FinalCTA() {
   return (
     <section className="py-24 sm:py-32 bg-cream">
       <div ref={ref} className="reveal max-w-7xl mx-auto px-5 sm:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-800 to-brand-900 px-8 py-16 sm:px-16 sm:py-20 text-center">
+        <div className="on-dark relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-800 to-brand-900 px-8 py-16 sm:px-16 sm:py-20 text-center">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute -top-20 -right-20 w-72 h-72 bg-brand-500/15 rounded-full blur-[100px]" />
             <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-brand-400/15 rounded-full blur-[100px]" />
@@ -25,14 +25,14 @@ export default function FinalCTA() {
               <span className="text-brand-300">Did you catch it?</span>
             </h2>
 
-            <p className="mt-5 text-lg text-cream/60 leading-relaxed">
+            <p className="mt-5 text-lg text-cream/70 leading-relaxed">
               Start your free trial — upload your first invoice in 60 seconds. No credit card. No setup fee. No commitment.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
                 href="/app"
-                className="group inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-cream text-brand-900 font-semibold text-base hover:bg-white transition-all hover:-translate-y-0.5"
+                className="press group inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-cream text-brand-900 font-semibold text-base hover:bg-white hover:-translate-y-0.5"
               >
                 Start Free Trial
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -41,7 +41,7 @@ export default function FinalCTA() {
                 href={DEMO_BOOKING_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white/[0.08] border border-cream/20 text-cream font-medium text-base hover:bg-white/[0.14] transition-all"
+                className="press inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white/[0.08] border border-cream/20 text-cream font-medium text-base hover:bg-white/[0.14]"
               >
                 Book a 30-Min Demo
               </a>

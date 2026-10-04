@@ -35,14 +35,14 @@ export default function SetupGuide() {
           {/* Header */}
           <p className="text-sm font-semibold text-brand-600 uppercase tracking-widest mb-3">Getting started</p>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-brand-900 tracking-tight">Setup guide</h1>
-          <p className="mt-4 text-lg text-brand-800/70 leading-relaxed">
+          <p className="mt-4 text-lg text-brand-800/75 leading-relaxed">
             From sign-up to your first coded invoice in about 20 minutes. Do the steps in order —
             each one builds on the last.
           </p>
 
           {/* Gather first */}
           <div className="mt-10 rounded-2xl border border-cream-200 bg-white p-6 sm:p-7">
-            <p className="text-xs font-semibold text-brand-800/50 uppercase tracking-widest mb-5">Gather these first</p>
+            <p className="text-xs font-semibold text-brand-800/75 uppercase tracking-widest mb-5">Gather these first</p>
             <div className="grid sm:grid-cols-2 gap-4">
               {gather.map((g) => (
                 <div key={g.label} className="flex items-start gap-3">
@@ -51,7 +51,7 @@ export default function SetupGuide() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-brand-900">{g.label}</p>
-                    <p className="text-xs text-brand-800/60">{g.note}</p>
+                    <p className="text-xs text-brand-800/75">{g.note}</p>
                     {g.href && (
                       <a
                         href={g.href}
@@ -65,7 +65,7 @@ export default function SetupGuide() {
                 </div>
               ))}
             </div>
-            <p className="mt-5 pt-4 border-t border-cream-100 text-sm text-brand-800/60">
+            <p className="mt-5 pt-4 border-t border-cream-100 text-sm text-brand-800/75">
               The product list matters most — it teaches the AI. The fuller it is, the better it codes on day one.
             </p>
           </div>
@@ -79,7 +79,7 @@ export default function SetupGuide() {
                 </div>
                 <div>
                   <h3 className="font-bold text-brand-900">{s.title}</h3>
-                  <p className="text-sm text-brand-800/60 mt-0.5 leading-relaxed">{s.body}</p>
+                  <p className="text-sm text-brand-800/75 mt-0.5 leading-relaxed">{s.body}</p>
                 </div>
               </div>
             ))}
@@ -104,7 +104,7 @@ export default function SetupGuide() {
               {faqs.map((f) => (
                 <div key={f.q} className="p-5 rounded-xl border border-cream-200 bg-white">
                   <p className="text-sm font-bold text-brand-900">{f.q}</p>
-                  <p className="text-sm text-brand-800/60 mt-1 leading-relaxed">{f.a}</p>
+                  <p className="text-sm text-brand-800/75 mt-1 leading-relaxed">{f.a}</p>
                 </div>
               ))}
             </div>

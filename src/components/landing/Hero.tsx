@@ -27,7 +27,7 @@ export default function Hero() {
               <span className="text-gradient">in seconds.</span>
             </h1>
 
-            <p className="mt-6 text-lg text-brand-800/70 leading-relaxed max-w-lg">
+            <p className="mt-6 text-lg text-brand-800/75 leading-relaxed max-w-lg">
               ChefCode reads your supplier invoices, assigns the right GL codes,
               and flags vendor overcharges — automatically. In under 60 seconds,
               not 24 hours.
@@ -37,21 +37,21 @@ export default function Hero() {
             <div className="mt-9 flex flex-col sm:flex-row gap-4">
               <a
                 href="/app"
-                className="group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-brand-600 text-cream font-semibold text-base hover:bg-brand-700 transition-all hover:-translate-y-0.5 shadow-lg shadow-brand-600/20"
+                className="press group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-brand-600 text-cream font-semibold text-base hover:bg-brand-700 hover:-translate-y-0.5 shadow-lg shadow-brand-600/20"
               >
                 Start Free Trial
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </a>
               <a
                 href="#how-it-works"
-                className="group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-white border border-cream-300 text-brand-800 font-medium text-base hover:border-brand-300 transition-all"
+                className="press group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-white border border-cream-300 text-brand-800 font-medium text-base hover:border-brand-300"
               >
                 <Play className="w-4 h-4 text-brand-600" />
                 See How It Works
               </a>
             </div>
 
-            <p className="mt-5 text-sm text-brand-800/50">15-day free trial · no credit card</p>
+            <p className="mt-5 text-sm text-brand-800/75">15-day free trial · no credit card</p>
 
             {/* Origin story, not invented logos.
                 This replaced a stack of four fake monograms (UC/HG/DM/RK) over
@@ -67,8 +67,11 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* ── Right: Invoice demo ── */}
-          <div className="hidden lg:block">
+          {/* ── Right: Invoice demo ──
+              Was `hidden lg:block`, so phone visitors never saw the product at
+              all — the single most persuasive element on the page was desktop
+              only. It stacks under the copy on small screens. */}
+          <div className="mt-4 lg:mt-0">
             <InvoiceDemo />
           </div>
         </div>

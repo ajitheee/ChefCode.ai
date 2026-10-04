@@ -57,7 +57,7 @@ export default function Footer() {
                 ChefCode<span className="text-brand-600">.ai</span>
               </span>
             </a>
-            <p className="text-sm text-brand-800/60 leading-relaxed max-w-xs">
+            <p className="text-sm text-brand-800/75 leading-relaxed max-w-xs">
               AI-powered invoice intelligence for food service teams. Save time, catch overcharges, export clean data.
             </p>
           </div>
@@ -65,7 +65,7 @@ export default function Footer() {
           {/* Link columns */}
           {columns.map((col, i) => (
             <div key={i}>
-              <h4 className="text-xs font-semibold text-brand-800/50 uppercase tracking-widest mb-4">{col.title}</h4>
+              <h4 className="text-xs font-semibold text-brand-800/75 uppercase tracking-widest mb-4">{col.title}</h4>
               <ul className="space-y-2.5">
                 {col.links.map((link, j) => (
                   <li key={j}>
@@ -84,7 +84,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-14 pt-8 border-t border-cream-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-brand-800/50">&copy; {new Date().getFullYear()} ChefCode.ai. All rights reserved.</p>
+          <p className="text-xs text-brand-800/75">&copy; {new Date().getFullYear()} ChefCode.ai. All rights reserved.</p>
           <div className="flex items-center gap-6">
             {[
               { label: 'Privacy', href: '/privacy' },
@@ -94,7 +94,7 @@ export default function Footer() {
               <a
                 key={l.href}
                 href={l.href}
-                className="text-xs text-brand-800/70 hover:text-brand-700 transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+                className="text-xs text-brand-800/75 hover:text-brand-700 transition-colors rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
               >
                 {l.label}
               </a>

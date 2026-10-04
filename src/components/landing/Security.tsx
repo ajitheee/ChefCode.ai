@@ -19,7 +19,7 @@ export default function Security() {
   const ref = useReveal();
 
   return (
-    <section id="security" className="py-24 sm:py-32 bg-brand-900 relative overflow-hidden">
+    <section id="security" className="on-dark py-24 sm:py-32 bg-brand-900 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[140px]" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-brand-400/10 rounded-full blur-[120px]" />
@@ -34,7 +34,7 @@ export default function Security() {
           <h2 className="text-3xl sm:text-4xl font-extrabold text-cream tracking-tight">
             Your data is safer here than in a filing cabinet
           </h2>
-          <p className="mt-4 text-lg text-cream/60 leading-relaxed">
+          <p className="mt-4 text-lg text-cream/70 leading-relaxed">
             Built from day one for multi-tenant food service organizations that answer to auditors, controllers, and compliance teams.
           </p>
         </div>
@@ -50,7 +50,7 @@ export default function Security() {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-cream mb-0.5">{b.label}</h3>
-                <p className="text-xs text-cream/55 leading-relaxed">{b.desc}</p>
+                <p className="text-xs text-cream/70 leading-relaxed">{b.desc}</p>
               </div>
             </div>
           ))}
