@@ -1,5 +1,5 @@
-import LegalLayout, { H2, H3, P, UL, LI, Callout, Table } from '../components/legal/LegalLayout';
-import { POLICY_UPDATED, PRIVACY_CONTACT_URL, PRIVACY_CONTACT_LABEL } from '../siteConfig';
+import LegalLayout, { H2, H3, P, UL, LI, Callout, Table, ContactBlock } from '../components/legal/LegalLayout';
+import { POLICY_UPDATED, PRIVACY_CONTACT_EMAIL } from '../siteConfig';
 
 export default function SecurityOverview() {
   return (
@@ -160,16 +160,7 @@ export default function SecurityOverview() {
         <a className="text-brand-600 font-medium underline hover:text-brand-700" href="/dpa">Data Processing</a> page for
         processor terms and the sub-processor list.
       </P>
-      <P>
-        <a
-          className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 rounded-xl bg-brand-600 text-cream font-semibold text-sm hover:bg-brand-700 active:scale-[0.97] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-          href={PRIVACY_CONTACT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {PRIVACY_CONTACT_LABEL}
-        </a>
-      </P>
+      <ContactBlock email={PRIVACY_CONTACT_EMAIL} subject="Security review" />
     </LegalLayout>
   );
 }

@@ -26,13 +26,14 @@ export const hasBookingLink = /^https:\/\//.test(DEMO_BOOKING_URL);
 /**
  * Where privacy, security and data-deletion requests go.
  *
- * ⚠️  This is currently the booking link, because there is no working mailbox
- *     on chefcode.cc (no MX records) and chefcode.ai was never registered.
- *     Privacy law expects a contact channel a person can actually reach, so
- *     set up a real mailbox (privacy@chefcode.cc) and put it here.
+ * A monitored mailbox, which is what privacy law expects — a channel a person
+ * can actually reach, not a booking form. Worth moving to privacy@chefcode.cc
+ * once that domain has MX records, since an institutional reviewer reads a
+ * branded address as a stronger signal.
  */
-export const PRIVACY_CONTACT_URL = DEMO_BOOKING_URL;
-export const PRIVACY_CONTACT_LABEL = 'Book a call with us';
+export const PRIVACY_CONTACT_EMAIL = 'et.ajith2k@gmail.com';
+export const PRIVACY_CONTACT_URL = `mailto:${PRIVACY_CONTACT_EMAIL}`;
+export const PRIVACY_CONTACT_LABEL = 'Email us';
 
 /** Legal entity named in the policies. */
 export const LEGAL_ENTITY = 'ChefCode.ai';

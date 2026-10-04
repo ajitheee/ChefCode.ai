@@ -1,6 +1,6 @@
-import LegalLayout, { H2, P, UL, LI, Callout } from '../components/legal/LegalLayout';
+import LegalLayout, { H2, P, UL, LI, Callout, ContactBlock } from '../components/legal/LegalLayout';
 import {
-  POLICY_UPDATED, PRIVACY_CONTACT_URL, PRIVACY_CONTACT_LABEL,
+  POLICY_UPDATED, PRIVACY_CONTACT_EMAIL,
   LEGAL_ENTITY, LEGAL_JURISDICTION,
 } from '../siteConfig';
 
@@ -151,16 +151,7 @@ export default function Terms() {
         Questions about these terms, or want an enterprise agreement with a negotiated service level
         and a signed DPA? Get in touch.
       </P>
-      <P>
-        <a
-          className="inline-flex items-center gap-2 mt-2 px-5 py-2.5 rounded-xl bg-brand-600 text-cream font-semibold text-sm hover:bg-brand-700 active:scale-[0.97] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-          href={PRIVACY_CONTACT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {PRIVACY_CONTACT_LABEL}
-        </a>
-      </P>
+      <ContactBlock email={PRIVACY_CONTACT_EMAIL} subject="Question about the Terms" />
     </LegalLayout>
   );
 }

@@ -1,4 +1,4 @@
-import { DEMO_BOOKING_URL } from '../../siteConfig';
+import { DEMO_BOOKING_URL, PRIVACY_CONTACT_EMAIL } from '../../siteConfig';
 
 // Every link here goes somewhere real. The previous version had eleven
 // href="#" stubs — including all four legal links — which is the worst place
@@ -30,6 +30,7 @@ const columns = [
       { label: 'Start free trial', href: '/app' },
       { label: 'Book a demo', href: DEMO_BOOKING_URL },
       { label: 'Setup guide', href: '/setup' },
+      { label: 'Contact us', href: `mailto:${PRIVACY_CONTACT_EMAIL}` },
     ],
   },
   {

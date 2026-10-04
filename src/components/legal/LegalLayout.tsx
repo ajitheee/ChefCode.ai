@@ -145,3 +145,25 @@ export function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
     </div>
   );
 }
+
+/**
+ * The contact block every policy page ends with. Shows the address in full
+ * rather than hiding it behind a button — a reviewer copying it into a vendor
+ * record needs to see it, and a mailto: that opens an empty tab helps nobody.
+ */
+export function ContactBlock({ email, subject }: { email: string; subject?: string }) {
+  const href = `mailto:${email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`;
+  return (
+    <div className="mt-4 rounded-xl border border-cream-300 bg-white px-5 py-4">
+      <a
+        href={href}
+        className="text-base font-semibold text-brand-700 hover:text-brand-800 underline underline-offset-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+      >
+        {email}
+      </a>
+      <p className="mt-1 text-sm text-brand-800/70">
+        A person reads this, not a ticket queue. We aim to reply within two business days.
+      </p>
+    </div>
+  );
+}
