@@ -1,4 +1,4 @@
-import { ArrowRight, Play } from 'lucide-react';
+import { ArrowRight, Play, GraduationCap } from 'lucide-react';
 import InvoiceDemo from './InvoiceDemo';
 
 export default function Hero() {
@@ -53,16 +53,17 @@ export default function Hero() {
 
             <p className="mt-5 text-sm text-brand-800/50">15-day free trial · no credit card</p>
 
-            {/* Social proof */}
-            <div className="mt-10 flex items-center gap-4">
-              <div className="flex -space-x-2">
-                {['UC', 'HG', 'DM', 'RK'].map((initials, i) => (
-                  <div key={i} className="w-8 h-8 rounded-full bg-brand-600 border-2 border-cream flex items-center justify-center text-[10px] font-bold text-cream">
-                    {initials}
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-brand-800/60">Trusted by university dining &amp; hotel teams</p>
+            {/* Origin story, not invented logos.
+                This replaced a stack of four fake monograms (UC/HG/DM/RK) over
+                "Trusted by university dining & hotel teams" — proof that did
+                not exist. A specific, checkable story about why the product was
+                built does the same job and survives being asked about. */}
+            <div className="mt-10 flex items-start gap-3 max-w-md">
+              <GraduationCap className="w-5 h-5 text-brand-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-brand-800/75 leading-relaxed">
+                Built at <span className="font-semibold text-brand-900">Cal Poly Pomona</span> campus
+                dining &mdash; by the tech lead who was coding these invoices by hand.
+              </p>
             </div>
           </div>
 
