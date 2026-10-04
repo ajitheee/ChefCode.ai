@@ -1,4 +1,4 @@
-import { ArrowRight, Play, GraduationCap } from 'lucide-react';
+import { ArrowRight, ArrowDown, GraduationCap } from 'lucide-react';
 import InvoiceDemo from './InvoiceDemo';
 
 export default function Hero() {
@@ -46,7 +46,10 @@ export default function Hero() {
                 href="#how-it-works"
                 className="press group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-white border border-cream-300 text-brand-800 font-medium text-base hover:border-brand-300"
               >
-                <Play className="w-4 h-4 text-brand-600" />
+                {/* Was a play triangle, which promises a video. There is no
+                    video — this scrolls to the three-step explainer — so the
+                    icon now says what the button actually does. */}
+                <ArrowDown className="w-4 h-4 text-brand-600" />
                 See How It Works
               </a>
             </div>

@@ -436,7 +436,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       <Zap size={14} className="text-violet-600" />
                       <div>
                         <p className="text-xs font-bold text-slate-800">Need Enterprise?</p>
-                        <p className="text-[10px] text-slate-500">Unlimited locations + SSO + EDI</p>
+                        <p className="text-[10px] text-slate-500">Unlimited locations + custom integrations</p>
                       </div>
                     </div>
                     <a href={DEMO_BOOKING_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold text-violet-700 hover:text-violet-900 underline">

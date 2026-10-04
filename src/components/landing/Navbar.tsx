@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 
+// Rooted at "/" so they work from every page. As bare "#features" they only
+// resolved on the homepage: on /privacy, /terms, /security, /dpa and /setup
+// every one pointed at an anchor that doesn't exist there, and clicking them
+// did nothing at all — including "Security" while on the Security page.
 const links = [
-  { label: 'Features', href: '#features' },
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Security', href: '#security' },
-  { label: 'Pricing', href: '#pricing' },
+  { label: 'Features', href: '/#features' },
+  { label: 'How It Works', href: '/#how-it-works' },
+  { label: 'Security', href: '/#security' },
+  { label: 'Pricing', href: '/#pricing' },
 ];
 
 export default function Navbar() {

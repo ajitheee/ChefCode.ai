@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <link rel="apple-touch-icon" href="/logo.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>ChefCode.ai — AI Invoice Coding</title>
 
     <!-- Search + link previews. This is a client-rendered SPA, so the crawler
@@ -31,31 +31,16 @@
     <meta name="twitter:title" content="ChefCode.ai — AI Invoice Coding" />
     <meta name="twitter:description" content="ChefCode reads your supplier invoices, assigns the right GL codes, and flags vendor overcharges — automatically. Built for food service teams." />
     <meta name="twitter:image" content="https://www.chefcode.cc/og-image.png" />
-    <!-- Tailwind is compiled by the Vite build (src/index.css + tailwind.config.js),
-         which scans the whole app. The old cdn.tailwindcss.com runtime shim has
-         been retired; `cyan` is remapped to brand green in tailwind.config.js. -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      body {
-        font-family: 'Inter', sans-serif;
-      }
+      /* Painted inline so the very first frame is already the brand cream.
+         The compiled stylesheet arrives a moment later; without this the page
+         flashed a cool grey (bg-slate-50) before switching to cream. */
+      html, body { background: #faf6e8; color: #123a2c; }
+      body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "lucide-react": "https://esm.sh/lucide-react@^0.574.0",
-    "recharts": "https://esm.sh/recharts@^3.7.0",
-    "jspdf": "https://esm.sh/jspdf@^2.5.1",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
-  }
-}
-</script>
 </head>
-  <body class="bg-slate-50 text-slate-900 antialiased">
+  <body class="antialiased">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

@@ -92,6 +92,7 @@ export default function Privacy() {
           ['Google (Gemini API)', 'Reads the uploaded invoice', 'The invoice image or PDF, at the moment of upload'],
           ['Vercel', 'Serves the website and application', 'Standard web request data, including IP address'],
           ['Google Fonts', 'Serves the typeface used by the site', 'Your IP address when the page loads'],
+          ['Unsplash', 'Serves the photograph on the sign-in screen', 'Your IP address when the sign-in screen loads'],
         ]}
       />
 

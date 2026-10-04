@@ -8,10 +8,11 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const SecurityOverview = lazy(() => import('./pages/SecurityOverview'));
 const DataProcessing = lazy(() => import('./pages/DataProcessing'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
-// Policy pages. Longest-prefix-free: none of these is a prefix of another, and
-// none collides with the landing page's #security anchor (that's a hash, not a
-// path). Kept in one table so adding a page is a single line.
+// Policy pages, matched exactly. None collides with the landing page's
+// #security anchor — that's a hash, not a path. Kept in one table so adding a
+// page is one line here plus one entry in vercel.json's rewrites.
 const LEGAL_ROUTES: Array<[string, React.LazyExoticComponent<() => JSX.Element>]> = [
   ['/privacy', Privacy],
   ['/terms', Terms],
@@ -33,8 +34,14 @@ export default function Router() {
     return () => window.removeEventListener('popstate', onNav);
   }, []);
 
-  // Any path starting with /app loads the existing product
-  if (path.startsWith('/app')) {
+  // Matching is exact, not prefix. With startsWith, /setupfoo or
+  // /security-team rendered a real page while the server (vercel.json) answered
+  // the same URL with a 404 — two halves of the site disagreeing about which
+  // pages exist. These rules must stay in step with the rewrites there.
+  const clean = path.length > 1 ? path.replace(/\/+$/, '') : path;
+
+  // The product: /app, plus anything beneath it (auth redirects land on /app).
+  if (clean === '/app' || clean.startsWith('/app/')) {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <ExistingApp />
@@ -42,8 +49,7 @@ export default function Router() {
     );
   }
 
-  // Setup guide page
-  if (path.startsWith('/setup')) {
+  if (clean === '/setup') {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <SetupGuide />
@@ -51,8 +57,7 @@ export default function Router() {
     );
   }
 
-  // Policy pages
-  const legal = LEGAL_ROUTES.find(([prefix]) => path.startsWith(prefix));
+  const legal = LEGAL_ROUTES.find(([route]) => clean === route);
   if (legal) {
     const Page = legal[1];
     return (
@@ -62,10 +67,18 @@ export default function Router() {
     );
   }
 
-  // Everything else shows the landing page
+  if (clean === '/' || clean === '/index.html') {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <LandingPage />
+      </Suspense>
+    );
+  }
+
+  // Anything else is not a page.
   return (
     <Suspense fallback={<LoadingScreen />}>
-      <LandingPage />
+      <NotFound />
     </Suspense>
   );
 }

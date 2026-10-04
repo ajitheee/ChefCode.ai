@@ -1,5 +1,6 @@
 import Navbar from '../components/landing/Navbar';
 import Footer from '../components/landing/Footer';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { MapPin, ListOrdered, Building2, Database, Download, ArrowRight } from 'lucide-react';
 
 const gather = [
@@ -27,6 +28,8 @@ const faqs = [
 ];
 
 export default function SetupGuide() {
+  useDocumentTitle('Setup guide');
+
   return (
     <>
       <Navbar />

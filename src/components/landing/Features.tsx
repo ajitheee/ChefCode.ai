@@ -1,16 +1,16 @@
 import {
-  Scan, TrendingUp, BookOpen, Users, Bell, BarChart3,
+  Scan, TrendingUp, BookOpen, Users, CopyCheck, BarChart3,
   GraduationCap, Hotel, Check,
 } from 'lucide-react';
 import { useReveal } from '../../hooks/useReveal';
 
 const features = [
-  { icon: Scan, title: 'AI invoice extraction', desc: 'Upload any format — PDF, photo, email attachment. Line items extracted in seconds with 98% accuracy.' },
-  { icon: TrendingUp, title: 'Price spike detection', desc: 'Automatic alerts when a vendor raises prices above your threshold. Catch overcharges before they hit your P&L.' },
+  { icon: Scan, title: 'AI invoice extraction', desc: 'Upload a PDF or snap a photo on your phone. Every line item is read and structured in seconds, ready for you to review.' },
+  { icon: TrendingUp, title: 'Price change detection', desc: 'Every line is checked against what you last paid for that item. Anything more than 10% higher is flagged while you review.' },
   { icon: BookOpen, title: 'Auto GL coding', desc: 'Every line item auto-categorized to your chart of accounts. No more back-and-forth with accounting.' },
   { icon: Users, title: 'Role-based access', desc: 'Owner, Manager, Chef, Viewer — each role sees exactly what they need. Nothing more, nothing less.' },
-  { icon: Bell, title: 'Approval workflow', desc: 'Invoices flow from upload to review to approval. Notifications keep the right people in the loop.' },
-  { icon: BarChart3, title: 'Spend analytics', desc: 'Monthly spend by category, vendor, and location. Spot trends. Make data-driven purchasing decisions.' },
+  { icon: CopyCheck, title: 'Duplicate detection', desc: 'Upload the same invoice twice and ChefCode catches it, so nothing gets coded — or paid — twice.' },
+  { icon: BarChart3, title: 'Spend analytics', desc: 'Monthly spend broken down by GL category, with every flagged price change on one screen.' },
 ];
 
 const verticals = [
@@ -23,7 +23,7 @@ const verticals = [
       'GL code mapping for institutional accounting',
       'Works alongside CBORD & Computrition',
       'FERPA-safe — zero student data touched',
-      'Full audit trail for compliance reviews',
+      'Every invoice traceable to who processed it',
     ],
   },
   {
@@ -31,9 +31,9 @@ const verticals = [
     title: 'Hotels & Hospitality',
     color: 'from-brand-600 to-brand-400',
     points: [
-      'Multi-property invoice consolidation',
-      'Role-based access (GM, Chef, Controller)',
-      'Price spike alerts across all vendors',
+      'Invoices tracked per property',
+      'Role-based access for GMs, chefs and controllers',
+      'Price change flags across every vendor',
       'Sysco, US Foods, Freshpoint pre-loaded',
       'Encrypted data with SOC 2 compliant hosting',
     ],

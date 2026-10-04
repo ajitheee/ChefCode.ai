@@ -11,7 +11,7 @@ const plans = [
     cta: 'Start Free Trial',
     href: '/app',
     featured: false,
-    items: ['1 location', '3 team members', '200 invoices / month', 'AI extraction + GL coding', 'Price spike alerts', 'CSV export', 'Email support'],
+    items: ['1 location', '3 team members', '200 invoices / month', 'AI extraction + GL coding', 'Price change detection', 'PDF + CSV export', 'Email support'],
   },
   {
     name: 'Professional',
@@ -20,7 +20,7 @@ const plans = [
     cta: 'Start Free Trial',
     href: '/app',
     featured: true,
-    items: ['Up to 5 locations', '15 team members', '1,000 invoices / month', 'Everything in Starter', 'QuickBooks integration', 'Spend analytics dashboard', 'Approval workflows', 'Priority support'],
+    items: ['Up to 5 locations', '15 team members', '1,000 invoices / month', 'Everything in Starter', 'Spend analytics dashboard', 'Duplicate invoice detection', 'Per-location access control', 'Priority support'],
   },
   {
     name: 'Enterprise',
@@ -29,7 +29,7 @@ const plans = [
     cta: 'Book a Demo',
     href: DEMO_BOOKING_URL,
     featured: false,
-    items: ['Unlimited locations', 'Unlimited team members', 'Unlimited invoices', 'Everything in Professional', 'SSO / SAML integration', 'API access', 'Vendor EDI connections', 'Dedicated account manager', 'Custom onboarding'],
+    items: ['Unlimited locations', 'Unlimited team members', 'Unlimited invoices', 'Everything in Professional', 'Custom integrations, scoped with you', 'Signed DPA + security review support', 'Dedicated account manager', 'Custom onboarding'],
   },
 ];
 

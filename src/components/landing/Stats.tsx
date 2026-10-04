@@ -1,9 +1,13 @@
 import { useReveal } from '../../hooks/useReveal';
 
+// Each of these is a fact a buyer can check, not a figure they have to trust.
+// This row used to claim "98% AI extraction accuracy" and "10+ hrs saved per
+// week, per team" — neither was measured, and an unsourced number is the first
+// thing a careful buyer asks about and the last thing you want to defend.
 const stats = [
-  { value: '< 60s', label: 'Invoice processing time' },
-  { value: '98%', label: 'AI extraction accuracy' },
-  { value: '10+ hrs', label: 'Saved per week, per team' },
+  { value: '< 60s', label: 'To code a typical invoice' },
+  { value: '0', label: 'Invoice images stored' },
+  { value: '15 days', label: 'Free trial, no card' },
   { value: '$0', label: 'Setup fee' },
 ];
 
