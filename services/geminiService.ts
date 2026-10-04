@@ -1,3 +1,4 @@
+import { describeAiFailure } from './aiErrors';
 import { GoogleGenAI, Type } from "@google/genai";
 import { getAllProducts, buildProductIndex, matchProduct } from "./productService";
 import { getAllGlCodes } from "./glCodeService";
@@ -256,6 +257,10 @@ export const analyzeInvoiceImage = async (
     if (isTransientError(error)) {
       throw new Error("The AI service is busy right now. Please wait a few seconds and try again.");
     }
+    // Everything else from the provider used to be rethrown raw, so its JSON
+    // body landed on the invoice screen. Translate it; keep our own messages.
+    const plain = describeAiFailure(error);
+    if (plain) throw new Error(plain);
     throw error;
   }
 };
