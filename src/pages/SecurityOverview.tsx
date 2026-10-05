@@ -20,14 +20,15 @@ export default function SecurityOverview() {
         ChefCode is a browser application backed by a managed Postgres database. There is no
         self-managed server infrastructure to patch and no on-premise component to install. The
         application is served as static assets from a CDN, and it talks directly to the database
-        provider's API over TLS.
+        provider's API over TLS. One small server function, hosted on Vercel, handles invoice
+        reading. It is the only part of ChefCode that holds the AI provider's API key.
       </P>
       <Table
         head={['Layer', 'Provider', 'Notes']}
         rows={[
           ['Database and authentication', 'Supabase', 'Managed Postgres on AWS. SOC 2 Type II certified.'],
           ['Application hosting', 'Vercel', 'Static assets over a global CDN, TLS terminated at the edge.'],
-          ['Invoice text extraction', 'Google Gemini API', 'Called directly from the browser at upload time.'],
+          ['Invoice reading', 'Vercel function + Google Gemini API', "The browser sends the document to ChefCode's server function, which checks the user is signed in and calls Gemini. The API key exists only on the server."],
         ]}
       />
       <P>
@@ -99,10 +100,14 @@ export default function SecurityOverview() {
       <H2 id="ai">Third-party AI processing</H2>
       <P>
         Reading an invoice requires sending the uploaded document to Google's Gemini API. The
-        request goes directly from the user's browser to Google and contains the document and the
-        extraction instructions — no account names, email addresses or organization details are
-        included. We do not use customer data to train models, and we do not operate any model of
-        our own on your data.
+        user's browser sends the document to ChefCode's server, which confirms the user is signed
+        in and their organization is active, then sends Google the document and the extraction
+        instructions. Those instructions include the organization's GL codes and its locations'
+        names and addresses, which are needed to code each line and match the delivery address;
+        no user names or email addresses are sent. The server passes the document through
+        without storing it, and the AI provider's API key is held only on the server and is never
+        sent to a browser. We do not use customer data to train models, and we do not operate any
+        model of our own on your data.
       </P>
       <P>
         If your institution's policy prohibits sending supplier documents to a third-party AI
