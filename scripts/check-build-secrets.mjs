@@ -1,6 +1,10 @@
-// Build-time secret gate. Fails the build if a Supabase service_role key (or
-// the SERVICE_ROLE var name) ends up in the client bundle. Runs after
-// `vite build` — see package.json "build".
+// Build-time secret gate. Fails the build if a secret ends up in the client
+// bundle, where anyone visiting the site can read it. Runs after `vite build` —
+// see package.json "build". Checks for:
+//   1. a Supabase service_role key (or the SERVICE_ROLE var name)
+//   2. a Google / Gemini API key — by shape, and by the actual configured value.
+//      The Gemini key was once compiled into the bundle; it was copied off
+//      chefcode.cc, misused, and Google suspended the project (2026-10-04).
 //
 // The service_role key is a JWT whose payload base64url-decodes to
 // {"role":"service_role",...}, so a plain text grep for "service_role" misses
@@ -10,6 +14,25 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST = 'dist';
+// Google API keys: the classic "AIza…" form and the newer "AQ.…" form.
+const GOOGLE_KEY_RES = [/AIza[0-9A-Za-z_-]{35}/, /AQ\.[A-Za-z0-9_-]{40,}/];
+
+// The real configured values, so a key in any format is caught. Vercel puts
+// them in process.env during its build; locally they live in .env.local.
+function configuredGeminiKeys() {
+  const names = ['GEMINI_API_KEY', 'VITE_GEMINI_API_KEY', 'API_KEY', 'VITE_API_KEY'];
+  const values = names.map((n) => process.env[n]);
+  for (const file of ['.env', '.env.local', '.env.production', '.env.production.local']) {
+    try {
+      for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
+        const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*)$/);
+        if (m && names.includes(m[1])) values.push(m[2].trim().replace(/^["']|["']$/g, ''));
+      }
+    } catch { /* file absent */ }
+  }
+  return [...new Set(values.filter((v) => v && v.length >= 20))];
+}
+const GEMINI_KEYS = configuredGeminiKeys();
 const JWT_RE = /eyJ[A-Za-z0-9_-]{6,}\.eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}/g;
 
 function walk(dir) {
@@ -58,13 +81,18 @@ for (const file of files) {
   if (/SERVICE_ROLE/.test(text)) {
     leaks.push(`${file}: contains "SERVICE_ROLE"`);
   }
+
+  // 3) A Google / Gemini API key — never print it, only say where it is.
+  if (GOOGLE_KEY_RES.some((re) => re.test(text)) || GEMINI_KEYS.some((k) => text.includes(k))) {
+    leaks.push(`${file}: contains a Google API key`);
+  }
 }
 
 if (leaks.length) {
-  console.error('\n[31m✗ BUILD BLOCKED — a service_role secret is present in the build:[0m');
+  console.error('\n[31m✗ BUILD BLOCKED — a secret is present in the build:[0m');
   for (const l of leaks) console.error('  - ' + l);
-  console.error('\nRemove any VITE_-prefixed service_role key from .env.local / Vercel and rebuild.\n');
+  console.error('\nA secret would be published inside the website, where anyone can read it. Supabase service_role key: remove any VITE_-prefixed copy from .env.local and Vercel. Gemini key: only api/extract-invoice.ts may read it, as GEMINI_API_KEY; check no browser code reads it and vite.config.ts has no define for it.\n');
   process.exit(1);
 }
 
-console.log('[check-build-secrets] OK — no service_role secret in dist/.');
+console.log(`[check-build-secrets] OK — no service_role secret and no Google API key in dist/ (checked ${GEMINI_KEYS.length} configured key value(s) plus key shapes).`);

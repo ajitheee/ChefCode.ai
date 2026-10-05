@@ -64,15 +64,18 @@ export default function Privacy() {
       </P>
       <P>
         To read an invoice, ChefCode sends the image or PDF you uploaded to Google's Gemini API,
-        which performs the text extraction and returns structured line items. The request goes
-        directly from your browser to Google. The extracted data then comes back to your browser,
-        you review it, and only what you save is written to our database.
+        which performs the text extraction and returns structured line items. Your browser sends
+        the document to ChefCode's own server, which checks that you are signed in and passes it
+        on to Google; the server does not store it. The extracted data then comes back to your
+        browser, you review it, and only what you save is written to our database.
       </P>
       <P>
         This means the contents of an invoice you upload are processed by Google as part of
         delivering the feature. Google's handling of that data is governed by the terms of the
-        Gemini API. We do not send Google your name, your email, your organization or any other
-        account information — only the document itself and the instructions needed to read it.
+        Gemini API. We do not send Google your name, your email address or any other account
+        information. We send the document and the instructions needed to read it, and those
+        instructions include your GL codes and your locations' names and addresses, so that each
+        line can be coded and the delivery address matched to the right location.
       </P>
       <Callout>
         If your organization cannot send supplier documents to a third-party AI provider, tell us
@@ -89,8 +92,8 @@ export default function Privacy() {
         head={['Provider', 'What it does', 'What it sees']}
         rows={[
           ['Supabase (hosted on AWS)', 'Database and authentication', 'All stored account and business data'],
-          ['Google (Gemini API)', 'Reads the uploaded invoice', 'The invoice image or PDF, at the moment of upload'],
-          ['Vercel', 'Serves the website and application', 'Standard web request data, including IP address'],
+          ['Google (Gemini API)', 'Reads the uploaded invoice', 'The invoice image or PDF, plus your GL codes and location names and addresses, at the moment of upload'],
+          ['Vercel', 'Serves the website and runs the server that passes invoices to Google', 'Standard web request data including IP address, and each uploaded invoice in transit (not stored)'],
           ['Google Fonts', 'Serves the typeface used by the site', 'Your IP address when the page loads'],
           ['Unsplash', 'Serves the photograph on the sign-in screen', 'Your IP address when the sign-in screen loads'],
         ]}

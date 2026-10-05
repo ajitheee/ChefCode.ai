@@ -56,8 +56,8 @@ export default function DataProcessing() {
         head={['Sub-processor', 'Purpose', 'Data processed', 'Location']}
         rows={[
           ['Supabase', 'Managed database and authentication', 'All stored account and business data', 'United States (AWS)'],
-          ['Google LLC', 'Invoice text extraction (Gemini API)', 'The uploaded invoice document only', 'United States'],
-          ['Vercel', 'Application hosting and CDN', 'Request metadata including IP address', 'Global edge, United States origin'],
+          ['Google LLC', 'Invoice text extraction (Gemini API)', 'The uploaded invoice, plus the GL codes and location names and addresses used to read it', 'United States'],
+          ['Vercel', 'Application hosting, CDN, and the server function that relays invoices for reading', 'Request metadata including IP address; uploaded invoices in transit, not stored', 'Global edge, United States origin'],
           ['Google LLC', 'Web font delivery', 'IP address at page load', 'Global edge'],
           ['Unsplash', 'Image delivery on the sign-in screen', 'IP address when the sign-in screen loads', 'Global edge'],
         ]}
